@@ -6,9 +6,10 @@ var $ = document;
 
 function blur() {
 	var element = $.activeElement;
-	if (element && element != $.body) {
-		element.blur();
-	}
+	if (element == null
+	 || element == $.documentElement
+	 || element == $.body) return;
+	element.blur();
 }
 function createDiv(className) {
 	var div = $.createElement('div');
@@ -477,6 +478,8 @@ var TabStrip = _(function (Base, base) {
 
 var Tab = _(function (Base, base) {
 	
+	var TITLE_NAME = NAME_PREFIX + 'title';
+	var CLOSE_NAME = NAME_PREFIX + 'close';
 	function mousedown() {
 		blur();
 		return false;
@@ -486,10 +489,10 @@ var Tab = _(function (Base, base) {
 		Base.call(this, 'tab', content);
 		
 		this.body = $.createElement('span');
-		this.body.className = NAME_PREFIX + 'title';
+		this.body.className = TITLE_NAME;
 		
 		var close = $.createElement('a');
-		close.className = NAME_PREFIX + 'close';
+		close.className = CLOSE_NAME;
 		close.textContent = '×';
 		close.onmousedown = mousedown;
 		close.onclick = function () {
@@ -545,9 +548,9 @@ var Tab = _(function (Base, base) {
 
 var Edge = _(function (Base, base) {
 	
-	var vNames = ['top', 'middle', 'bottom'];
-	var hNames = ['left', 'center', 'right'];
-	var cursors = [
+	var V_NAMES = ['top', 'middle', 'bottom'];
+	var H_NAMES = ['left', 'center', 'right'];
+	var CURSORS = [
 		['nwse', 'ns', 'nesw'],
 		[ 'ew' , null,  'ew' ],
 		['nesw', 'ns', 'nwse']];
@@ -558,10 +561,10 @@ var Edge = _(function (Base, base) {
 		this.v = v;
 		this.h = h;
 		
-		this.addClass(vNames[v]);
-		this.addClass(hNames[h]);
+		this.addClass(V_NAMES[v]);
+		this.addClass(H_NAMES[h]);
 		
-		this.cursor = cursors[v][h] + '-resize';
+		this.cursor = CURSORS[v][h] + '-resize';
 		this.element.style.cursor = this.cursor;
 	}
 	var prototype = inherit(Edge, base);
