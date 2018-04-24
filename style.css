@@ -1,0 +1,315 @@
+
+.dd-container {
+	position: relative;
+	width:  100%;
+	height: 100%;
+	white-space: nowrap;
+	overflow: hidden;
+}
+
+.dd-floats,  .dd-fbody,
+.dd-body,    .dd-guide,
+.dd-overlay, .dd-cover {
+	position: absolute;
+	top:    0;
+	right:  0;
+	bottom: 0;
+	left:   0;
+}
+.dd-overlay, .dd-cover { /* 古い IE 対策 */
+	display: none;
+	background-color: black;
+	opacity: 0;
+}
+
+.dd-overlay {
+	z-index: 2147483647;
+}
+.dd-dragging .dd-overlay {
+	display: block;
+}
+
+.dd-grabbing, .dd-guide {
+	z-index: 2147483646;
+}
+
+.dd-guidepane, .dd-guidearea {
+	position: absolute;
+}
+.dd-guidebutton {
+	position: absolute;
+	width: 40px;
+	line-height: 40px;
+	text-align: center;
+	z-index: 1;
+}
+
+
+.dd-floating .dd-body  .dd-cover,
+.dd-floats   .dd-float .dd-cover {
+	display: block;
+}
+.dd-floating .dd-float.dd-active .dd-cover {
+	display: none;
+}
+
+
+.dd-float {
+	position: absolute;
+}
+.dd-float .dd-sub {
+	height: 100%;
+	z-index: 1;
+}
+.dd-fbody {
+	margin: 4px;
+	border: solid 2px;
+}
+
+.dd-edge {
+	position: absolute;
+}
+.dd-edge.dd-left, .dd-edge.dd-right {
+	width: 10px;
+}
+.dd-edge.dd-top, .dd-edge.dd-bottom {
+	height: 10px;
+}
+.dd-edge.dd-center {
+	left:  10px;
+	right: 10px;
+}
+.dd-edge.dd-middle {
+	top:    10px;
+	bottom: 10px;
+}
+.dd-edge.dd-top {
+	top: 0;
+}
+.dd-edge.dd-right {
+	right: 0;
+}
+.dd-edge.dd-bottom {
+	bottom: 0;
+}
+.dd-edge.dd-left {
+	left: 0;
+}
+
+
+.dd-body {
+	margin: 6px;
+}
+
+.dd-horizontal > * {
+	float: left;
+}
+
+.dd-splitter {
+	width: 100%;
+	height: 6px;
+}
+.dd-horizontal > .dd-splitter {
+	width: 6px;
+	height: 100%;
+}
+.dd-splitter.dd-grabbing {
+	position: relative;
+}
+
+
+.dd-tabstrip {
+	position: absolute;
+	right: 0;
+	left : 0;
+	height: 26px;
+}
+.dd-tab {
+	position: relative;
+	float: left;
+	height:      26px;
+	line-height: 26px;
+	font-size: 14px;
+	overflow: hidden;
+	cursor: default;
+}
+.dd-title {
+	position: absolute;
+	top:    0;
+	right:  0;
+	bottom: 0;
+	left:   0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+.dd-tab.dd-active .dd-title {
+	padding-right: 18px;
+}
+.dd-close {
+	display: none;
+	position: absolute;
+	top:    4px;
+	right:  4px;
+	bottom: 4px;
+	text-align: center;
+}
+.dd-tab.dd-active .dd-close {
+	display: block;
+}
+.dd-floating .dd-main .dd-close {
+	display: none;
+}
+
+
+.dd-main, .dd-sub {
+	position: relative;
+	overflow: hidden;
+}
+
+.dd-main .dd-tabstrip {
+	border-bottom: solid 2px;
+}
+.dd-main .dd-tab.dd-active {
+	height: 28px;
+	line-height: 28px;
+}
+.dd-main .dd-title {
+	margin-right: 10px;
+	margin-left:  10px;
+}
+.dd-floating .dd-main .dd-tab.dd-active .dd-title {
+	padding-right: 0;
+}
+.dd-main .dd-close {
+	width: 20px;
+	line-height: 20px;
+}
+.dd-main .dd-contents {
+	position: absolute;
+	top: 28px;
+	bottom: 0;
+	width: 100%;
+}
+
+.dd-sub .dd-title {
+	margin-right: 8px;
+	margin-left:  8px;
+}
+.dd-sub .dd-close {
+	width: 18px;
+	line-height: 18px;
+}
+.dd-sub .dd-contents {
+	position: absolute;
+	top: 26px;
+	bottom: 0;
+	width: 100%;
+}
+
+.dd-content {
+	display: none;
+}
+.dd-content.dd-active {
+	display: block;
+}
+.dd-content, .dd-content > * {
+	width:  100%;
+	height: 100%;
+}
+
+.dd-content > * {
+	display: block;
+}
+.dd-content > iframe {
+	border: none;
+}
+
+
+/*
+	Theme
+*/
+
+.dd-container {
+	background-color: #2d2d30;
+	color: #d0d0d0;
+}
+
+.dd-guidebutton {
+	background-color: #161618;
+	opacity: .75;
+}
+.dd-guidebutton.dd-hover {
+	background-color: #3399ff;
+	color: #ffffff;
+}
+.dd-guidearea {
+	background-color: #3399ff;
+	opacity: .25;
+}
+
+.dd-fbody {
+	border-color: #3f3f46;
+}
+.dd-floating .dd-active .dd-fbody {
+	border-color: #007acc;
+}
+
+.dd-splitter.dd-grabbing {
+	background-color: #161618;
+}
+
+
+.dd-grabbing {
+	opacity: .75;
+}
+
+.dd-contents {
+	background-color: #252526;
+}
+
+.dd-main .dd-tabstrip {
+	border-bottom-color: #007acc;
+}
+.dd-main .dd-tab:hover {
+	background-color: #3e3e40;
+}
+.dd-main .dd-tab.dd-active {
+	color: #ffffff;
+	background-color: #007acc;
+}
+.dd-main .dd-close {
+	color: #d0e6f5;
+}
+.dd-main .dd-close:hover {
+	color: #ffffff;
+	background-color: #1c97ea;
+}
+.dd-main .dd-close:active {
+	color: #ffffff;
+	background-color: #0e6198;
+}
+
+.dd-floating .dd-main .dd-tabstrip {
+	border-bottom-color: #3f3f46;
+}
+.dd-floating .dd-main .dd-tab.dd-active {
+	background-color: #3f3f46;
+	color: #d0d0d0;
+}
+
+.dd-sub .dd-tabstrip {
+	background-color: #333334;
+}
+.dd-sub .dd-tab:hover {
+	background-color: #3e3e40;
+}
+.dd-sub .dd-tab.dd-active {
+	background-color: #28282b;
+}
+.dd-sub .dd-close:hover {
+	background-color: #393939;
+}
+.dd-sub .dd-close:active {
+	color: #ffffff;
+	background-color: #1f1f20;
+}
