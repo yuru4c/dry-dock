@@ -6,7 +6,9 @@ var $ = document;
 
 function blur() {
 	var element = $.activeElement;
-	if (element) element.blur();
+	if (element && element != $.body) {
+		element.blur();
+	}
 }
 function createDiv(className) {
 	var div = $.createElement('div');
