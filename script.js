@@ -66,12 +66,49 @@ var Vector = (function () {
 			this.x - rect.left,
 			this.y - rect.top);
 	};
+	
+	prototype.max = function (x, y) {
+		return new Vector(
+			Math.max(this.x, x),
+			Math.max(this.y, y));
+	};
+	
 	prototype.abs2 = function () {
 		return this.x * this.x +
 		       this.y * this.y;
 	};
 	
 	return Vector;
+})();
+var Size = (function () {
+	function Size(width, height) {
+		this.width  = width;
+		this.height = height;
+	}
+	var prototype = Size.prototype;
+	
+	Size.from = function (element) {
+		return new Size(
+			element.clientWidth,
+			element.clientHeight);
+	};
+	Size.square = function (value) {
+		return new Size(value, value);
+	};
+	
+	prototype.max = function (size) {
+		return new Size(
+			Math.max(this.width,  size.width),
+			Math.max(this.height, size.height));
+	};
+	
+	prototype.minus = function (value) {
+		return new Size(
+			this.width  - value,
+			this.height - value);
+	};
+	
+	return Size;
 })();
 var Rect = (function () {
 	
@@ -103,6 +140,13 @@ var Rect = (function () {
 			this.left - rect.left,
 			this.width, this.height);
 	};
+	
+	prototype.max = function (value) {
+		return new Rect(
+			this.top, this.left,
+			Math.max(this.width,  value),
+			Math.max(this.height, value));
+	};
 	prototype.round = function () {
 		return new Rect(
 			Math.round(this.top),
@@ -110,6 +154,7 @@ var Rect = (function () {
 			Math.round(this.width),
 			Math.round(this.height));
 	};
+	
 	prototype.contains = function (vector) {
 		if (vector.x < this.left) return false;
 		if (vector.y < this.top ) return false;
@@ -208,8 +253,6 @@ var Model = (function () {
 	}
 	var prototype = Model.prototype;
 	
-	// Model.TOP_MOST = 2147483647;
-	
 	function indexOf(array, item) {
 		var length = array.length;
 		for (var i = 0; i < length; i++) {
@@ -218,7 +261,7 @@ var Model = (function () {
 		return -1;
 	}
 	
-	prototype.onActivate   = function () { };
+	prototype.onActivate = function () { };
 	prototype.activate = function () {
 		this.onActivate();
 		this.parent.activate();
@@ -848,9 +891,11 @@ var GuideButton = _(function (Base, base) {
 		} else
 		if (target == this.container) { // 外側
 			this.outer(contents, target, target.child);
+			this.container.updateMinSize();
 		} else
 		if (target instanceof Main) { // Dock 追加
 			this.dockPane(contents, target, parent);
+			this.container.updateMinSize();
 		} else {
 			this.pane(contents, target, parent);
 		}
@@ -1279,15 +1324,24 @@ var Container = _(function (Base, base) {
 	};
 	
 	prototype.onresize = function () {
-		this.width  = this.element.clientWidth;
-		this.height = this.element.clientHeight;
+		this.clientSize = Size.from(this.element);
+		if (this.minSize) {
+			this.updateSize();
+		} else {
+			this.updateMinSize();
+		}
 		this.layout();
 	};
+	prototype.updateMinSize = function () {
+		this.minSize = this.child.getMinSize();
+		this.updateSize();
+	};
+	prototype.updateSize = function () {
+		this.size = this.clientSize
+			.minus(Container.M2).max(this.minSize);
+	};
 	prototype.layout = function () {
-		var min = this.child.getMinSize();
-		this.child.onresize(
-			Math.max(this.width,  min.x) - Container.M2,
-			Math.max(this.height, min.y) - Container.M2);
+		this.child.onresize(this.size.width, this.size.height);
 	};
 	
 	prototype.getContainer = function () {
@@ -1295,7 +1349,10 @@ var Container = _(function (Base, base) {
 	};
 	
 	prototype.init = function () {
-		if (this.child) this.removeChild();
+		if (this.child) {
+			this.removeChild();
+			this.minSize = null;
+		}
 		this.floats.removeAll();
 	};
 	
@@ -1543,12 +1600,13 @@ var Dock = _(function (Base, base) {
 	};
 	
 	prototype.getMinSize = function () {
-		var sum = this.firsts.size + this.lasts.size;
 		var size = this.child.getMinSize();
-		return size.plus(this.horizontal
-			? new Vector(sum, 0)
-			: new Vector(0, sum));
+		var sum = this.firsts.size + this.lasts.size;
+		return this.horizontal
+			? new Size(size.width + sum, size.height)
+			: new Size(size.width, size.height + sum);
 	};
+	
 	prototype.onresize = function (width, height) {
 		this.setSize(width, height);
 		var sum = this.firsts.size + this.lasts.size;
@@ -1630,9 +1688,13 @@ var DockPane = _(function (Base, base) {
 		this.draggingInner = splitter.index == inner;
 		
 		if (this.draggingInner) {
-			var main = splitter.container.getMain();
-			var mainSize = this.horizontal ? main.width : main.height;
-			this.maxSize = this.size + mainSize - Tab.MAIN;
+			this.container = splitter.container;
+			var size = this.container.size;
+			var min  = this.container.minSize;
+			var rem = this.horizontal
+				? size.width  - min.width
+				: size.height - min.height;
+			this.maxSize = this.size + rem;
 		}
 	};
 	prototype.onSplitterDrag = function (i, delta) {
@@ -1645,6 +1707,8 @@ var DockPane = _(function (Base, base) {
 			if (rem < delta) delta = rem;
 			this.size  += delta;
 			child.size += delta;
+			
+			this.container.updateMinSize();
 		} else {
 			var next = this.children[this.last ? i - 1 : i + 1];
 			if (delta > next.size) delta = next.size;
@@ -1842,6 +1906,7 @@ var Pane = _(function (Base, base) {
 			}
 		} else {
 			this.parent.removeChild(this);
+			container.updateMinSize();
 		}
 		container.layout();
 	};
@@ -1977,9 +2042,7 @@ var Main = _(function (Base, base) {
 	}
 	var prototype = inherit(Main, base);
 	
-	var MIN_SIZE = (function (ms) {
-		return new Vector(ms, ms);
-	})(Tab.MAIN + Container.M2);
+	var MIN_SIZE = Size.square(Tab.MAIN);
 	
 	Main.fromJSON = function (container, json) {
 		var main = new Main();
@@ -1997,7 +2060,6 @@ var Main = _(function (Base, base) {
 	prototype.onresize = function (width, height) {
 		this.setSize(width, height);
 		this.width  = width;
-		this.height = height;
 		this.setTabSize();
 	};
 	prototype.setTabSize = function () { // px const
@@ -2039,16 +2101,15 @@ var Sub = _(function (Base, base) {
 		return sub;
 	};
 	
-	function max(rect, delta) {
-		var left = rect.left + rect.width - Tab.HEIGHT;
-		return new Vector(
-			Math.max(delta.x, Edge.SIZE - left),
-			Math.max(delta.y, Edge.SIZE - rect.top));
+	function max(delta, rect) {
+		return delta.max(
+			Edge.SIZE - rect.left - rect.width + Tab.HEIGHT,
+			Edge.SIZE - rect.top);
 	}
 	
 	prototype.detatchChild = function (content, diff) {
 		var container = content.tab.container;
-		var rect = this.getRectOf(container).round();
+		var rect = this.getRectOf(container);
 		this.removeChild(content);
 		
 		var sub = new Sub();
@@ -2062,11 +2123,8 @@ var Sub = _(function (Base, base) {
 	
 	prototype.openFloat = function (container, rect, delta) {
 		var float = new Float(this);
-		delta = max(rect, delta);
-		rect = rect.plus(delta);
-		if (rect.width  < Tab.HEIGHT) rect.width  = Tab.HEIGHT;
-		if (rect.height < Tab.HEIGHT) rect.height = Tab.HEIGHT;
-		float.rect = rect;
+		delta = max(delta, rect);
+		float.rect = rect.plus(delta).max(Tab.HEIGHT).round();
 		
 		container.floats.appendChild(float);
 		float.activate();
@@ -2081,7 +2139,7 @@ var Sub = _(function (Base, base) {
 		
 		if (this.parent instanceof Float) {
 			var r = this.parent.rect;
-			delta = max(r, delta);
+			delta = max(delta, r);
 			this.parent.rect = r.plus(delta);
 			this.parent.layout();
 			
@@ -2089,7 +2147,7 @@ var Sub = _(function (Base, base) {
 			return delta;
 		}
 		
-		var rect = this.getRectOf(container).round();
+		var rect = this.getRectOf(container);
 		this.parent.removeChild(this, false);
 		this.unsetSize();
 		return this.openFloat(container, rect, delta);
@@ -2156,7 +2214,9 @@ var Content = _(function (Base, base) {
 	var prototype = inherit(Content, base);
 	
 	Content.fromJSON = function (container, json) {
-		return container.contents[json.id];
+		var content = container.contents[json.id];
+		content.deactivateSelf();
+		return content;
 	};
 	
 	prototype.setTitle = function (title) {
@@ -2175,6 +2235,9 @@ var Content = _(function (Base, base) {
 		this.tab.setTitle(this.getTitle());
 	};
 	
+	prototype.onActivate = function () {
+		this.parent.activateChild(this);
+	};
 	prototype.activateSelf = function () {
 		this.addActiveClass();
 		this.tab.addActiveClass();
@@ -2182,10 +2245,6 @@ var Content = _(function (Base, base) {
 	prototype.deactivateSelf = function () {
 		this.removeActiveClass();
 		this.tab.removeActiveClass();
-	};
-	
-	prototype.onActivate = function () {
-		this.parent.activateChild(this);
 	};
 	
 	prototype.onclose = function () { };
@@ -2235,6 +2294,10 @@ return (function () {
 	DryDock.Sub = Sub;
 	DryDock.Content = Content;
 	
+	function center(value) {
+		return value / 2 + Tab.HEIGHT * (Math.random() - .5);
+	}
+	
 	prototype.open = function (element) {
 		var content = new Content(element);
 		this.layout.getMain().appendChild(content);
@@ -2250,18 +2313,19 @@ return (function () {
 	};
 	prototype.openSub = function (content, rect) {
 		if (content.isClosed()) {
-			var w = rect && rect.width  || 300;
-			var h = rect && rect.height || 200;
-			var r = new Rect(
-				rect && rect.top  || (this.layout.height - h) / 2,
-				rect && rect.left || (this.layout.width  - w) / 2,
-				w, h).round();
+			var s = this.layout.clientSize;
+			var r = rect ? Rect.from(rect) : new Rect;
+			
+			r.width  = r.width  || 300;
+			r.height = r.height || 200;
+			r.top  = r.top  || center(s.height - r.height);
+			r.left = r.left || center(s.width  - r.width );
 			
 			var sub = new Sub();
 			sub.appendChild(content, true);
-			var float = new Float(sub);
-			float.rect = r;
-			this.layout.floats.appendChild(float);
+			sub.activateChild(content);
+			sub.openFloat(this.layout, r, Vector.ZERO);
+			return;
 		}
 		content.activate();
 	};
