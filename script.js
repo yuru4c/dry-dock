@@ -561,8 +561,7 @@ var Tab = _(function (Base, base) {
 	
 	prototype.ondragstart = function () {
 		this.contents = this.tabstrip.parent;
-		this.diff = this.contents.detatchChild ?
-			Vector.ZERO : null;
+		this.diff = this.contents.detatchChild && Vector.ZERO;
 		this.x = 0;
 		this.addGrabbingClass();
 	};
@@ -571,14 +570,12 @@ var Tab = _(function (Base, base) {
 		if (diff) {
 			this.diff = diff.plus(delta);
 			if (Math.abs(this.diff.y) >= Tab.HEIGHT) {
-				var d = this.contents.detatchChild(
-					this.parent, this.diff);
 				this.ondrop();
-				return d.minus(diff);
+				return this.contents.detatchChild(
+					this.parent, this.diff).minus(diff);
 			}
 		}
-		this.x += delta.x;
-		this.x = this.tabstrip.onTabDrag(this, this.x);
+		this.x = this.tabstrip.onTabDrag(this, this.x + delta.x);
 		this.element.style.left = this.x + 'px';
 	};
 	prototype.ondrop = function () {
@@ -1362,7 +1359,6 @@ var Container = _(function (Base, base) {
 		return json;
 	};
 	prototype.fromJSON = function (json) {
-		this.init();
 		this.setMainChild(this, json.child);
 		this.floats.fromJSON(this, json.floats);
 	};
@@ -2341,7 +2337,9 @@ return (function () {
 		return JSON.stringify(this.layout);
 	};
 	prototype.restore = function (jsonString) {
+		this.layout.init();
 		this.layout.fromJSON(JSON.parse(jsonString));
+		this.layout.activate();
 		this.layout.onresize();
 	};
 	
