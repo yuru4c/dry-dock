@@ -1916,8 +1916,8 @@ var Pane = _(function (Base, base) {
 	};
 	
 	prototype.divideSizes = function (size) {
-		this.remSize = size;
-		var division = new Division(size);
+		this.remSize = size < 0 ? 0 : size;
+		var division = new Division(this.remSize);
 		var length = this.children.length;
 		for (var i = 0; i < length; i++) {
 			division.set(i, this.children[i].size);
