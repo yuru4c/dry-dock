@@ -156,11 +156,10 @@ var Rect = (function () {
 	};
 	
 	prototype.contains = function (vector) {
-		if (vector.x < this.left) return false;
-		if (vector.y < this.top ) return false;
-		if (this.left + this.width <= vector.x) return false;
-		if (this.top + this.height <= vector.y) return false;
-		return true;
+		return this.left <= vector.x
+		    && this.top  <= vector.y
+		    && vector.x < this.left + this.width
+		    && vector.y < this.top  + this.height;
 	};
 	
 	return Rect;
@@ -505,14 +504,23 @@ var TabStrip = _(function (Base, base) {
 	};
 	
 	prototype.onresize = function (size, tabSize, margin) {
-		var l = this.tabs.length;
+		var length = this.tabs.length, rem = 0;
 		size = margin < size ? size - margin : 0;
-		if (tabSize * l > size) tabSize = size / l;
-		this.tabSize = tabSize;
 		
-		var width = tabSize + 'px';
-		for (var i = 0; i < l; i++) {
-			this.tabs[i].element.style.width = width;
+		if (tabSize * length > size) {
+			this.tabSize = size / length;
+			if (margin) tabSize = this.tabSize;
+			else {
+				rem = size % length;
+				tabSize = Math.floor(this.tabSize);
+			}
+		} else this.tabSize = tabSize;
+		
+		for (var i = length - 1; i >= 0; tabSize++, rem = 0) {
+			var width = tabSize + 'px';
+			for (; i >= rem; i--) {
+				this.tabs[i].element.style.width = width;
+			}
 		}
 	};
 	
@@ -1396,7 +1404,8 @@ var Floats = _(function (Base, base) {
 		var i = float.index, length = this.children.length;
 		while (i < length) this.children[i].setZ(++i);
 		
-		if (length == 0) this.parent.activate();
+		if (length) return;
+		this.parent.activate();
 	};
 	prototype.removeAll = function () {
 		for (var i = this.children.length - 1; i >= 0; i--) {
@@ -1833,12 +1842,15 @@ var Pane = _(function (Base, base) {
 	};
 	
 	prototype.onSplitterDragStart = function (splitter) {
+		if (this.remSize == 0) return;
+		
 		var length = this.children.length;
 		for (var i = 0; i < length; i++) {
 			this.children[i].size = this.sizes[i] / this.remSize;
 		}
 	};
 	prototype.onSplitterDrag = function (i, delta) {
+		if (this.remSize == 0) return;
 		var n = i + 1;
 		
 		var cSize = this.sizes[i];
@@ -2155,9 +2167,8 @@ var Sub = _(function (Base, base) {
 	prototype.removeChild = function (content) {
 		base.removeChild.call(this, content);
 		
-		if (this.children.length == 0) {
-			this.parent.removeChild(this, false);
-		}
+		if (this.children.length) return;
+		this.parent.removeChild(this, false);
 	};
 	
 	prototype.onresize = function (width, height) {
