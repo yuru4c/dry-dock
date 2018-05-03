@@ -357,7 +357,7 @@ var Draggable = _(function (Base, base) {
 			    event.target == self.body) {
 				
 				var container = self.getContainer();
-				container.delegateDraggable(self);
+				container.setDragging(self);
 				container.mousedown(event);
 				return false;
 			}
@@ -578,7 +578,6 @@ var Tab = _(function (Base, base) {
 		if (diff) {
 			this.diff = diff.plus(delta);
 			if (Math.abs(this.diff.y) >= Tab.HEIGHT) {
-				this.ondrop();
 				return this.contents.detatchChild(
 					this.parent, this.diff).minus(diff);
 			}
@@ -1093,21 +1092,6 @@ var Immutable = _(function (Base, base) {
 		this.child = null;
 	};
 	
-	prototype.getMain = function () {
-		return this.child.getMain();
-	};
-	prototype.setMainChild = function (container, json) {
-		switch (json.type) {
-			case 'dock':
-			this.setChild(Dock.fromJSON(container, json));
-			break;
-			
-			case 'main':
-			this.setChild(Main.fromJSON(container, json));
-			break;
-		}
-	};
-	
 	prototype.toJSON = function () {
 		var json = base.toJSON.call(this);
 		json.child = this.child;
@@ -1155,17 +1139,16 @@ var Mutable = _(function (Base, base) {
 		child.parent = null;
 		this.children.splice(child.index, 1);
 		var length = this.children.length;
-		if (length) {
-			if (child == this.active) {
-				var index = child.index;
-				if (index == length) index = length - 1;
-				this.activateChild(this.children[index]);
-			}
-			for (var i = child.index; i < length; i++) {
-				this.children[i].index = i;
-			}
+		for (var i = child.index; i < length; i++) {
+			this.children[i].index = i;
 		}
 		this.body.removeChild(child.element);
+		
+		if (length && child == this.active) {
+			var index = child.index;
+			if (index == length) index = length - 1;
+			this.activateChild(this.children[index]);
+		}
 	};
 	prototype.replaceChild = function (child, oldChild) {
 		oldChild.parent = null;
@@ -1210,6 +1193,33 @@ var Mutable = _(function (Base, base) {
 	return Mutable;
 })(Layout);
 
+
+var DockBase = _(function (Base, base) {
+	
+	function DockBase(className) {
+		Base.call(this, className);
+	}
+	var prototype = inherit(DockBase, base);
+	
+	prototype.getMain = function () {
+		return this.child.getMain();
+	};
+	
+	prototype.fromJSON = function (container, json) {
+		var child = json.child;
+		switch (child.type) {
+			case 'dock':
+			this.setChild(Dock.fromJSON(container, child));
+			break;
+			
+			case 'main':
+			this.setChild(Main.fromJSON(container, child));
+			break;
+		}
+	};
+	
+	return DockBase;
+})(Immutable);
 
 var Container = _(function (Base, base) {
 	
@@ -1270,9 +1280,7 @@ var Container = _(function (Base, base) {
 			self.element.ontouchend  = null;
 			self.removeClass(DRAGGING_NAME);
 			
-			self.dragging.ondrop();
-			self.dragging.container = null;
-			self.dragging = null;
+			self.setDragging(null);
 		};
 		this.touchmove = Draggable.toTouch(this.mousemove);
 		this.touchend  = Draggable.toTouch(this.mouseup);
@@ -1283,8 +1291,12 @@ var Container = _(function (Base, base) {
 	Container.M2 = Container.MARGIN * 2;
 	Container.PX = Container.MARGIN + 'px';
 	
-	prototype.delegateDraggable = function (draggable) {
-		draggable.container = this;
+	prototype.setDragging = function (draggable) {
+		if (this.dragging) {
+			this.dragging.ondrop();
+			this.dragging.container = null;
+		}
+		if (draggable) draggable.container = this;
 		this.dragging = draggable;
 	};
 	prototype.mousedown = function (event) {
@@ -1367,12 +1379,12 @@ var Container = _(function (Base, base) {
 		return json;
 	};
 	prototype.fromJSON = function (json) {
-		this.setMainChild(this, json.child);
+		base.fromJSON.call(this, this, json);
 		this.floats.fromJSON(this, json.floats);
 	};
 	
 	return Container;
-})(Immutable);
+})(DockBase);
 
 var Floats = _(function (Base, base) {
 	
@@ -1401,8 +1413,10 @@ var Floats = _(function (Base, base) {
 		base.removeChild.call(this, float);
 		if (pauseLayout) return;
 		
-		var i = float.index, length = this.children.length;
-		while (i < length) this.children[i].setZ(++i);
+		var length = this.children.length;
+		for (var i = float.index; i < length; ) {
+			this.children[i].setZ(++i);
+		}
 		
 		if (length) return;
 		this.parent.activate();
@@ -1559,7 +1573,7 @@ var Dock = _(function (Base, base) {
 	
 	Dock.fromJSON = function (container, json) {
 		var dock = new Dock(json.horizontal);
-		dock.setMainChild   (container, json.child);
+		dock.fromJSON(container, json);
 		dock.firsts.fromJSON(container, json.firsts);
 		dock.lasts .fromJSON(container, json.lasts);
 		return dock;
@@ -1636,7 +1650,7 @@ var Dock = _(function (Base, base) {
 	};
 	
 	return Dock;
-})(Immutable);
+})(DockBase);
 
 
 var PaneBase = _(function (Base, base) {
@@ -2015,10 +2029,6 @@ var Contents = _(function (Base, base) {
 		return null;
 	};
 	
-	prototype.getMain = function () {
-		return null;
-	};
-	
 	prototype.onStripMousedown = function () { };
 	prototype.onStripDrag = function (delta) { }; // called from Main
 	prototype.onStripDrop = function () { };
@@ -2067,7 +2077,7 @@ var Main = _(function (Base, base) {
 	};
 	prototype.onresize = function (width, height) {
 		this.setSize(width, height);
-		this.width  = width;
+		this.width = width;
 		this.setTabSize();
 	};
 	prototype.setTabSize = function () { // px const
@@ -2124,7 +2134,7 @@ var Sub = _(function (Base, base) {
 		sub.appendChild(content, true);
 		sub.activateChild(content);
 		
-		container.delegateDraggable(sub.tabstrip);
+		container.setDragging(sub.tabstrip);
 		sub.onStripMousedown();
 		return sub.openFloat(container, rect, diff);
 	};
