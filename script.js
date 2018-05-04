@@ -927,7 +927,7 @@ var GuideButton = _(function (Base, base) {
 		var dock = new Dock(this.position.horizontal);
 		dock.setChild(child);
 		(this.position.last ?
-			dock.last : dock.first).appendChild(pane);
+			dock.lasts : dock.firsts).appendChild(pane);
 		return dock;
 	};
 	
