@@ -465,16 +465,14 @@ var TabStrip = _(function (Base, base) {
 	};
 	
 	prototype.onTabDrag = function (tab, x) {
-		var move = Math.round(x / this.tabSize);
-		if (move == 0) return x;
 		var l = this.tabs.length;
 		
-		var toIndex = tab.index + move;
+		var toIndex = tab.index + Math.round(x / this.tabSize);
 		if (toIndex <  0) toIndex = 0;
 		if (toIndex >= l) toIndex = l - 1;
 		if (toIndex == tab.index) return x;
 		
-		move = toIndex - tab.index;
+		var move = toIndex - tab.index;
 		var minus = move < 0;
 		
 		var to = this.tabs[toIndex];
@@ -516,11 +514,12 @@ var TabStrip = _(function (Base, base) {
 			}
 		} else this.tabSize = tabSize;
 		
-		for (var i = length - 1; i >= 0; tabSize++, rem = 0) {
+		for (var i = length - 1; i >= 0; rem = 0) {
 			var width = tabSize + 'px';
 			for (; i >= rem; i--) {
 				this.tabs[i].element.style.width = width;
 			}
+			tabSize++;
 		}
 	};
 	
@@ -927,11 +926,8 @@ var GuideButton = _(function (Base, base) {
 	prototype.newDock = function (child, pane) {
 		var dock = new Dock(this.position.horizontal);
 		dock.setChild(child);
-		if (this.position.last) {
-			dock.lasts.appendChild(pane);
-		} else {
-			dock.firsts.appendChild(pane);
-		}
+		(this.position.last ?
+			dock.last : dock.first).appendChild(pane);
 		return dock;
 	};
 	
@@ -1073,12 +1069,6 @@ var Immutable = _(function (Base, base) {
 	prototype.calcRect = function () {
 		this.cRect = this.getRect();
 		this.child.calcRect();
-	};
-	prototype.getChild = function (client) {
-		if (this.cRect.contains(client)) {
-			return this.child.getChild(client);
-		}
-		return null;
 	};
 	
 	prototype.setChild = function (child) {
@@ -1326,7 +1316,7 @@ var Container = _(function (Base, base) {
 				if (child instanceof Float) return null;
 				return child;
 			}
-			return base.getChild.call(this, client);
+			return this.child.getChild(client);
 		}
 		return null;
 	};
@@ -1604,10 +1594,9 @@ var Dock = _(function (Base, base) {
 	};
 	prototype.getChild = function (client) {
 		if (this.cRect.contains(client)) {
-			var child = base.getChild.call(this, client);
-			if (child) return child;
-			return this.firsts.getChild(client) ||
-			       this.lasts .getChild(client);
+			return this.child .getChild(client)
+			    || this.firsts.getChild(client)
+			    || this.lasts .getChild(client);
 		}
 		return null;
 	};
