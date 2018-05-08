@@ -514,12 +514,15 @@ var TabStrip = _(function (Base, base) {
 			}
 		} else this.tabSize = tabSize;
 		
-		for (var i = length - 1; i >= 0; rem = 0) {
-			var width = tabSize + 'px';
-			for (; i >= rem; i--) {
-				this.tabs[i].element.style.width = width;
-			}
-			tabSize++;
+		if (rem) {
+			this.setEachSize(0, rem, tabSize + 1);
+		}
+		this.setEachSize(rem, length, tabSize);
+	};
+	prototype.setEachSize = function (index, length, size) {
+		var width = size + 'px';
+		for (var i = index; i < length; i++) {
+			this.tabs[i].element.style.width = width;
 		}
 	};
 	
@@ -563,7 +566,7 @@ var Tab = _(function (Base, base) {
 	
 	prototype.setTitle = function (title) {
 		this.element.title    = title;
-		this.body.textContent = title || '―';
+		this.body.textContent = title;
 	};
 	
 	prototype.ondragstart = function () {
