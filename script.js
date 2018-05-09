@@ -359,6 +359,7 @@ var Draggable = _(function (Base, base) {
 				var container = self.getContainer();
 				container.setDragging(self);
 				container.mousedown(event);
+				self.activate();
 				return false;
 			}
 		}
@@ -385,9 +386,7 @@ var Draggable = _(function (Base, base) {
 		this.removeClass(GRABBING_NAME);
 	};
 	
-	prototype.onmousedown = function () {
-		this.activate();
-	};
+	prototype.onmousedown = function () { };
 	prototype.ondragstart = function () { };
 	prototype.ondrag = function (delta) { };
 	prototype.ondrop = function () { };
@@ -411,7 +410,6 @@ var Splitter = _(function (Base, base) {
 	Splitter.HALF = Splitter.SIZE / 2;
 	
 	prototype.onmousedown = function () {
-		base.onmousedown.call(this);
 		this.addGrabbingClass();
 	};
 	prototype.ondragstart = function () {
@@ -491,7 +489,6 @@ var TabStrip = _(function (Base, base) {
 	};
 	
 	prototype.onmousedown = function () {
-		base.onmousedown.call(this);
 		this.parent.onStripMousedown();
 	};
 	prototype.ondrag = function (delta) {
@@ -541,19 +538,22 @@ var Tab = _(function (Base, base) {
 	function Tab(content) {
 		Base.call(this, 'tab', content);
 		
+		var title = content.getTitle();
+		this.textNode = $.createTextNode(title);
+		
 		this.body = $.createElement('span');
 		this.body.className = TITLE_NAME;
+		this.body.appendChild(this.textNode);
 		
 		var close = $.createElement('a');
 		close.className = CLOSE_NAME;
-		close.textContent = '×';
 		close.onmousedown = mousedown;
 		close.onclick = function () {
 			content.close();
 		};
+		close.appendChild($.createTextNode('×'));
 		
-		this.setTitle(content.getTitle());
-		
+		this.element.title = title;
 		this.element.appendChild(this.body);
 		this.element.appendChild(close);
 	}
@@ -565,8 +565,8 @@ var Tab = _(function (Base, base) {
 	prototype.hardDrag = true;
 	
 	prototype.setTitle = function (title) {
-		this.element.title    = title;
-		this.body.textContent = title;
+		this.element.title = title;
+		this.textNode.data = title;
 	};
 	
 	prototype.ondragstart = function () {
@@ -854,7 +854,7 @@ var GuideButton = _(function (Base, base) {
 		this.container = parent.container;
 		this.position = position;
 		
-		this.body.textContent = position.char;
+		this.body.appendChild($.createTextNode(position.char));
 	}
 	var prototype = inherit(GuideButton, base);
 	
@@ -2213,12 +2213,11 @@ var Content = _(function (Base, base) {
 		this.tab = new Tab(this);
 		
 		var self = this;
-		
 		// DOM
-		this.body.appendChild(frame);
 		frame.onload = function () {
 			self.updateTitle();
 		};
+		this.body.appendChild(frame);
 	}
 	var prototype = inherit(Content, base);
 	

@@ -3,11 +3,12 @@
 	position: relative;
 	width:  100%;
 	height: 100%;
+	z-index: 0;
 	overflow: hidden;
 }
 
-.dd-floats,  .dd-fbody,
 .dd-body,    .dd-guide,
+.dd-floats,  .dd-fbody,
 .dd-overlay, .dd-cover {
 	position: absolute;
 	top:    0;
@@ -15,21 +16,27 @@
 	bottom: 0;
 	left:   0;
 }
-.dd-overlay, .dd-cover { /* 古い IE 対策 */
-	display: none;
-	background-color: black;
+
+
+.dd-overlay, .dd-cover {
+	z-index: 16777215;
+	/* IE */
+	background-color: #000;
 	opacity: 0;
 }
 
-.dd-overlay {
-	z-index: 2147483647;
+.dd-overlay, .dd-body .dd-cover,
+.dd-floating .dd-float.dd-active .dd-cover {
+	display: none;
 }
-.dd-dragging .dd-overlay {
+.dd-dragging .dd-overlay,
+.dd-floating .dd-body .dd-cover {
 	display: block;
 }
 
-.dd-grabbing, .dd-guide {
-	z-index: 2147483646;
+
+.dd-guide, .dd-grabbing {
+	z-index: 16777214;
 }
 
 .dd-guidepane, .dd-guidearea {
@@ -37,19 +44,11 @@
 }
 .dd-guidebutton {
 	position: absolute;
-	width: 40px;
+	width:  40px;
+	height: 40px;
 	line-height: 40px;
 	text-align: center;
 	z-index: 1;
-}
-
-
-.dd-floating .dd-body  .dd-cover,
-.dd-floats   .dd-float .dd-cover {
-	display: block;
-}
-.dd-floating .dd-float.dd-active .dd-cover {
-	display: none;
 }
 
 
@@ -117,12 +116,18 @@
 }
 
 
+.dd-main, .dd-sub {
+	position: relative;
+	overflow: hidden;
+}
+
 .dd-tabstrip {
 	position: absolute;
 	right: 0;
-	left : 0;
+	left:  0;
 	height: 26px;
 }
+
 .dd-tab {
 	position: relative;
 	float: left;
@@ -132,6 +137,7 @@
 	overflow: hidden;
 	cursor: default;
 }
+
 .dd-title {
 	position: absolute;
 	top:    0;
@@ -145,6 +151,7 @@
 .dd-tab.dd-active .dd-title {
 	padding-right: 18px;
 }
+
 .dd-close {
 	display: none;
 	position: absolute;
@@ -161,11 +168,6 @@
 }
 
 
-.dd-main, .dd-sub {
-	position: relative;
-	overflow: hidden;
-}
-
 .dd-main .dd-tabstrip {
 	border-bottom: solid 2px;
 }
@@ -173,10 +175,12 @@
 	height: 28px;
 	line-height: 28px;
 }
+
 .dd-main .dd-title {
 	margin-right: 10px;
 	margin-left:  10px;
 }
+
 .dd-floating .dd-main .dd-tab.dd-active .dd-title {
 	padding-right: 0;
 }
@@ -184,29 +188,34 @@
 	width: 20px;
 	line-height: 20px;
 }
+
 .dd-main .dd-contents {
-	position: absolute;
 	top: 28px;
-	bottom: 0;
-	width: 100%;
 }
+
 
 .dd-sub .dd-title {
 	margin-right: 8px;
 	margin-left:  8px;
 }
+
 .dd-sub .dd-close {
 	width: 18px;
 	line-height: 18px;
 }
-.dd-sub .dd-contents {
+
+
+.dd-contents {
 	position: absolute;
 	top: 26px;
 	bottom: 0;
 	width: 100%;
+	z-index: 0;
 }
 
 .dd-content {
+	position: relative;
+	z-index: 0;
 	display: none;
 }
 .dd-content.dd-active {
@@ -257,7 +266,6 @@
 .dd-splitter.dd-grabbing {
 	background-color: #161618;
 }
-
 
 .dd-grabbing {
 	opacity: .75;
