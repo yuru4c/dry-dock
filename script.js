@@ -80,6 +80,7 @@ var Vector = (function () {
 	
 	return Vector;
 })();
+
 var Size = (function () {
 	function Size(width, height) {
 		this.width  = width;
@@ -110,6 +111,7 @@ var Size = (function () {
 	
 	return Size;
 })();
+
 var Rect = (function () {
 	
 	function Rect(top, left, width, height) {
@@ -165,6 +167,7 @@ var Rect = (function () {
 	return Rect;
 })();
 
+
 var ButtonPos = (function () {
 	
 	function ButtonPos(rect, margin, size) {
@@ -185,6 +188,7 @@ var ButtonPos = (function () {
 	
 	return ButtonPos;
 })();
+
 var ButtonDef = (function () {
 	
 	function ButtonDef(char, horizontal, last) {
@@ -195,6 +199,7 @@ var ButtonDef = (function () {
 	
 	return ButtonDef;
 })();
+
 
 var Division = (function () {
 	
@@ -2041,14 +2046,14 @@ var Contents = _(function (Base, base) {
 		this.tabstrip = new TabStrip(this);
 		
 		// DOM
-		this.cover = createDiv('cover');
-		this.cover.onmousedown = function () {
+		var cover = createDiv('cover');
+		cover.onmousedown = function () {
 			self.activate();
 			return false;
 		};
 		
 		this.body = createDiv('contents');
-		this.body.appendChild(this.cover);
+		this.body.appendChild(cover);
 		
 		this.element.appendChild(this.tabstrip.element);
 		this.element.appendChild(this.body);
