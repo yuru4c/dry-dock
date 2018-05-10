@@ -240,17 +240,18 @@ var Division = (function () {
 
 var Model = (function () {
 	
-	var ACTIVE_NAME = 'active';
-	
 	function Model(className) {
-		this.classList = [];
+		className = NAME_PREFIX + className;
+		this.classList = [className];
 		
-		this.element = $.createElement('div');
-		this.addClass(className);
+		this.element = $.createElement(this.tagName);
+		this.element.className = className;
 		
 		this.body = this.element;
 	}
 	var prototype = Model.prototype;
+	
+	var ACTIVE_NAME = NAME_PREFIX + 'active';
 	
 	function indexOf(array, item) {
 		var length = array.length;
@@ -259,6 +260,8 @@ var Model = (function () {
 		}
 		return -1;
 	}
+	
+	prototype.tagName = 'div';
 	
 	prototype.onActivate = function () { };
 	prototype.activate = function () {
@@ -285,22 +288,26 @@ var Model = (function () {
 		this.setSize(rect.width, rect.height);
 	};
 	
-	prototype.setClass = function () {
+	prototype.bodyRect = false;
+	prototype.getRect = function () {
+		var element = this.bodyRect ? this.body : this.element;
+		return Rect.from(element.getBoundingClientRect());
+	};
+	
+	prototype.applyClass = function () {
 		this.element.className = this.classList.join(' ');
 	};
 	prototype.addClass = function (className) {
-		className = NAME_PREFIX + className;
 		if (indexOf(this.classList, className) == -1) {
 			this.classList.push(className);
-			this.setClass();
+			this.applyClass();
 		}
 	};
 	prototype.removeClass = function (className) {
-		className = NAME_PREFIX + className;
 		var index = indexOf(this.classList, className);
 		if (index == -1) return;
 		this.classList.splice(index, 1);
-		this.setClass();
+		this.applyClass();
 	};
 	
 	prototype.addActiveClass = function () {
@@ -336,6 +343,7 @@ var Parts = _(function (Base, base) {
 	prototype.show = function () {
 		this.element.style.display = '';
 	};
+	
 	prototype.setDisable = function (disable) {
 		this.disable = disable;
 		if (disable) this.hide(); else this.show();
@@ -346,8 +354,6 @@ var Parts = _(function (Base, base) {
 
 var Draggable = _(function (Base, base) {
 	
-	var GRABBING_NAME = 'grabbing';
-	
 	function Draggable(className, parent) {
 		Base.call(this, className, parent);
 		
@@ -356,10 +362,13 @@ var Draggable = _(function (Base, base) {
 			if (event.target == self.element ||
 			    event.target == self.body) {
 				
-				var container = self.getContainer();
-				container.setDragging(self);
-				container.mousedown(event);
-				self.activate();
+				if (event.button) {
+					self.activate();
+				} else {
+					var container = self.getContainer();
+					container.setDragging(self);
+					container.mousedown(event);
+				}
 				return false;
 			}
 		}
@@ -372,9 +381,11 @@ var Draggable = _(function (Base, base) {
 	
 	Draggable.toTouch = function (listener) {
 		return function (event) {
-			return listener(event.touches[0]);
+			return listener.call(this, event.touches[0]);
 		};
 	};
+	
+	var GRABBING_NAME = NAME_PREFIX + 'grabbing';
 	
 	prototype.hardDrag = false;
 	prototype.cursor = '';
@@ -386,7 +397,9 @@ var Draggable = _(function (Base, base) {
 		this.removeClass(GRABBING_NAME);
 	};
 	
-	prototype.onmousedown = function () { };
+	prototype.onmousedown = function () {
+		this.activate();
+	};
 	prototype.ondragstart = function () { };
 	prototype.ondrag = function (delta) { };
 	prototype.ondrop = function () { };
@@ -410,6 +423,7 @@ var Splitter = _(function (Base, base) {
 	Splitter.HALF = Splitter.SIZE / 2;
 	
 	prototype.onmousedown = function () {
+		base.onmousedown.call(this);
 		this.addGrabbingClass();
 	};
 	prototype.ondragstart = function () {
@@ -489,6 +503,7 @@ var TabStrip = _(function (Base, base) {
 	};
 	
 	prototype.onmousedown = function () {
+		base.onmousedown.call(this);
 		this.parent.onStripMousedown();
 	};
 	prototype.ondrag = function (delta) {
@@ -528,13 +543,6 @@ var TabStrip = _(function (Base, base) {
 
 var Tab = _(function (Base, base) {
 	
-	var TITLE_NAME = NAME_PREFIX + 'title';
-	var CLOSE_NAME = NAME_PREFIX + 'close';
-	function mousedown() {
-		blur();
-		return false;
-	}
-	
 	function Tab(content) {
 		Base.call(this, 'tab', content);
 		
@@ -542,20 +550,14 @@ var Tab = _(function (Base, base) {
 		this.textNode = $.createTextNode(title);
 		
 		this.body = $.createElement('span');
-		this.body.className = TITLE_NAME;
+		this.body.className = NAME_PREFIX + 'title';
 		this.body.appendChild(this.textNode);
 		
-		var close = $.createElement('a');
-		close.className = CLOSE_NAME;
-		close.onmousedown = mousedown;
-		close.onclick = function () {
-			content.close();
-		};
-		close.appendChild($.createTextNode('×'));
+		var close = new Close(this, content);
 		
 		this.element.title = title;
 		this.element.appendChild(this.body);
-		this.element.appendChild(close);
+		this.element.appendChild(close.element);
 	}
 	var prototype = inherit(Tab, base);
 	
@@ -595,10 +597,65 @@ var Tab = _(function (Base, base) {
 	return Tab;
 })(Draggable);
 
+var Close = _(function (Base, base) {
+	
+	function Close(tab, content) {
+		Base.call(this, 'close', tab);
+		
+		this.content = content;
+		// DOM
+		this.body.appendChild($.createTextNode('×'));
+	}
+	var prototype = inherit(Close, base);
+	
+	var CANCEL_NAME = NAME_PREFIX + 'cancel';
+	
+	prototype.tagName = 'a';
+	
+	prototype.test = function () {
+		return this.cRect.contains(this.container.dragPrev);
+	};
+	
+	prototype.onmousedown = function () {
+		this.cRect = this.getRect();
+		this.hovering = true;
+		this.addActiveClass();
+		blur();
+	};
+	prototype.ondrag = function () {
+		var hovering = this.test();
+		if (hovering != this.hovering) {
+			if (hovering) {
+				this.addActiveClass();
+				this.removeClass(CANCEL_NAME);
+			} else {
+				this.removeActiveClass();
+				this.addClass(CANCEL_NAME);
+			}
+			this.hovering = hovering;
+		}
+	};
+	prototype.ondrop = function () {
+		if (this.hovering) {
+			this.content.close();
+			this.removeActiveClass();
+		} else {
+			this.removeClass(CANCEL_NAME);
+		}
+	};
+	
+	return Close;
+})(Draggable);
+
 var Edge = _(function (Base, base) {
 	
-	var V_NAMES = ['top', 'middle', 'bottom'];
-	var H_NAMES = ['left', 'center', 'right'];
+	function prefix(names) {
+		for (var i = 0; i < names.length; i++)
+			names[i] = NAME_PREFIX + names[i];
+		return names;
+	}
+	var V_NAMES = prefix(['top', 'middle', 'bottom']);
+	var H_NAMES = prefix(['left', 'center', 'right']);
 	var CURSORS = [
 		['nwse', 'ns', 'nesw'],
 		[ 'ew' , null,  'ew' ],
@@ -846,8 +903,6 @@ var Guide = _(function (Base, base) {
 
 var GuideButton = _(function (Base, base) {
 	
-	var HOVER_NAME = 'hover';
-	
 	function GuideButton(parent, position) {
 		Base.call(this, 'guidebutton', parent);
 		
@@ -867,6 +922,8 @@ var GuideButton = _(function (Base, base) {
 	GuideButton.SIZE   = 40; // px const
 	GuideButton.MARGIN =  3; // px const
 	GuideButton.SM = GuideButton.SIZE + GuideButton.MARGIN;
+	
+	var HOVER_NAME = NAME_PREFIX + 'hover';
 	
 	prototype.setPos = function (top, left) {
 		this.rect = new Rect(
@@ -1045,14 +1102,14 @@ var Layout = _(function (Base, base) {
 	}
 	var prototype = inherit(Layout, base);
 	
-	prototype.bodyRect = false;
+	var HORIZONTAL_NAME = NAME_PREFIX + 'horizontal';
 	
-	prototype.getRect = function () {
-		var element = this.bodyRect ? this.body : this.element;
-		return Rect.from(element.getBoundingClientRect());
-	};
 	prototype.getRectOf = function (layout) {
 		return this.getRect().of(layout.getRect());
+	};
+	
+	prototype.addHorizontalClass = function () {
+		this.addClass(HORIZONTAL_NAME);
 	};
 	
 	prototype.toJSON = function () {
@@ -1216,11 +1273,13 @@ var DockBase = _(function (Base, base) {
 
 var Container = _(function (Base, base) {
 	
-	var FLOATING_NAME = 'floating';
-	var DRAGGING_NAME = 'dragging';
+	var FLOATING_NAME = NAME_PREFIX + 'floating';
+	var DRAGGING_NAME = NAME_PREFIX + 'dragging';
 	
 	function Container(element) {
 		Base.call(this, 'container');
+		
+		var self = this;
 		
 		this.contents = {};
 		for (var node = element.firstChild; node; ) {
@@ -1233,10 +1292,10 @@ var Container = _(function (Base, base) {
 			node = next;
 		}
 		
-		this.floats  = new Floats(this);
-		this.guide   = new GuideParent(this);
 		this.body    = createDiv('body');
 		this.overlay = createDiv('overlay');
+		this.floats = new Floats(this);
+		this.guide  = new GuideParent(this);
 		
 		this.element.appendChild(this.floats.element);
 		this.element.appendChild(this.body);
@@ -1245,7 +1304,6 @@ var Container = _(function (Base, base) {
 		
 		element.appendChild(this.element);
 		
-		var self = this;
 		this.mousemove = function (event) {
 			var vector = Vector.from(event);
 			if (self.hardDrag) {
@@ -1266,13 +1324,12 @@ var Container = _(function (Base, base) {
 			self.dragDiff = resDiff ?
 				sumDiff.minus(resDiff) : Vector.ZERO;
 		};
-		this.mouseup = function (event) {
-			self.element.onmousemove = null;
-			self.element.onmouseup   = null;
-			self.element.ontouchmove = null;
-			self.element.ontouchend  = null;
+		this.mouseup = function () {
+			this.onmousemove = null;
+			this.onmouseup   = null;
+			this.ontouchmove = null;
+			this.ontouchend  = null;
 			self.removeClass(DRAGGING_NAME);
-			
 			self.setDragging(null);
 		};
 		this.touchmove = Draggable.toTouch(this.mousemove);
@@ -1384,9 +1441,9 @@ var Floats = _(function (Base, base) {
 	function Floats(container) {
 		Base.call(this, 'floats');
 		
+		var self = this;
 		this.parent = container;
 		
-		var self = this;
 		this.element.onmousedown = function (event) {
 			if (event.target == self.element) {
 				container.activate();
@@ -1558,7 +1615,7 @@ var Dock = _(function (Base, base) {
 		this.lasts  = new DockPane(this, true);
 		
 		// DOM
-		if (horizontal) this.addClass('horizontal');
+		if (horizontal) this.addHorizontalClass();
 		this.body.appendChild(this.firsts.element);
 		this.body.appendChild(this.lasts .element);
 	}
@@ -1654,7 +1711,7 @@ var PaneBase = _(function (Base, base) {
 		this.splitters = [];
 		
 		// DOM
-		if (horizontal) this.addClass('horizontal');
+		if (horizontal) this.addHorizontalClass();
 	}
 	var prototype = inherit(PaneBase, base);
 	
@@ -1981,20 +2038,19 @@ var Contents = _(function (Base, base) {
 		Base.call(this, className);
 		
 		var self = this;
+		this.tabstrip = new TabStrip(this);
 		
 		// DOM
-		this.tabstrip = new TabStrip(this);
-		this.element.appendChild(this.tabstrip.element);
-		
-		this.body = createDiv('contents');
-		
 		this.cover = createDiv('cover');
 		this.cover.onmousedown = function () {
 			self.activate();
 			return false;
 		};
+		
+		this.body = createDiv('contents');
 		this.body.appendChild(this.cover);
 		
+		this.element.appendChild(this.tabstrip.element);
 		this.element.appendChild(this.body);
 	}
 	var prototype = inherit(Contents, base);
@@ -2206,13 +2262,14 @@ var Content = _(function (Base, base) {
 	function Content(frame, id) {
 		Base.call(this, 'content');
 		
+		var self = this;
+		
 		this.frame = frame;
-		this.id = id;
+		this.id    = id;
 		this.title = frame.getAttribute(TITLE_NAME);
 		
 		this.tab = new Tab(this);
 		
-		var self = this;
 		// DOM
 		frame.onload = function () {
 			self.updateTitle();

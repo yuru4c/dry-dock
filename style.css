@@ -285,14 +285,16 @@
 	color: #ffffff;
 	background-color: #007acc;
 }
+
 .dd-main .dd-close {
 	color: #d0e6f5;
 }
-.dd-main .dd-close:hover {
+.dd-main .dd-close:hover,
+.dd-main .dd-close.dd-cancel {
 	color: #ffffff;
 	background-color: #1c97ea;
 }
-.dd-main .dd-close:active {
+.dd-main .dd-close.dd-active {
 	color: #ffffff;
 	background-color: #0e6198;
 }
@@ -314,10 +316,12 @@
 .dd-sub .dd-tab.dd-active {
 	background-color: #28282b;
 }
-.dd-sub .dd-close:hover {
+
+.dd-sub .dd-close:hover,
+.dd-sub .dd-close.dd-cancel {
 	background-color: #393939;
 }
-.dd-sub .dd-close:active {
+.dd-sub .dd-close.dd-active {
 	color: #ffffff;
 	background-color: #1f1f20;
 }
