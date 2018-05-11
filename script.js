@@ -168,6 +168,62 @@ var Rect = (function () {
 })();
 
 
+var EdgeDef = (function () {
+	
+	function EdgeDef(className) {
+		this.className = NAME_PREFIX + className;
+	}
+	
+	var VS = [
+		EdgeDef.TOP    = new EdgeDef('top'),
+		EdgeDef.MIDDLE = new EdgeDef('middle'),
+		EdgeDef.BOTTOM = new EdgeDef('bottom')
+	];
+	var HS = [
+		EdgeDef.LEFT   = new EdgeDef('left'),
+		EdgeDef.CENTER = new EdgeDef('center'),
+		EdgeDef.RIGHT  = new EdgeDef('right')
+	];
+	
+	var NS = 'ns-resize', NESW = 'nesw-resize';
+	var EW = 'ew-resize', NWSE = 'nwse-resize';
+	var CURSORS = [
+		[NWSE,  NS , NESW],
+		[ EW , null,  EW ],
+		[NESW,  NS , NWSE]
+	];
+	
+	EdgeDef.for = function (object) {
+		for (var i = 0; i < 3; i++) {
+		for (var j = 0; j < 3; j++) {
+			var cursor = CURSORS[i][j];
+			if (cursor) {
+				object.forEdgeDef(VS[i], HS[j], cursor);
+			}
+		}}
+	};
+	
+	return EdgeDef;
+})();
+
+
+var ButtonDef = (function () {
+	
+	function ButtonDef(char, horizontal, last) {
+		this.char = char;
+		this.horizontal = horizontal;
+		this.last = last;
+	}
+	
+	ButtonDef.TOP    = new ButtonDef('↑', false, false);
+	ButtonDef.RIGHT  = new ButtonDef('→', true,  true);
+	ButtonDef.BOTTOM = new ButtonDef('↓', false, true);
+	ButtonDef.LEFT   = new ButtonDef('←', true,  false);
+	ButtonDef.CENTER = new ButtonDef('＋', false, false);
+	
+	return ButtonDef;
+})();
+
 var ButtonPos = (function () {
 	
 	function ButtonPos(rect, margin, size) {
@@ -187,17 +243,6 @@ var ButtonPos = (function () {
 	};
 	
 	return ButtonPos;
-})();
-
-var ButtonDef = (function () {
-	
-	function ButtonDef(char, horizontal, last) {
-		this.char = char;
-		this.horizontal = horizontal;
-		this.last = last;
-	}
-	
-	return ButtonDef;
 })();
 
 
@@ -654,34 +699,18 @@ var Close = _(function (Base, base) {
 
 var Edge = _(function (Base, base) {
 	
-	function prefix(names) {
-		for (var i = 0; i < names.length; i++)
-			names[i] = NAME_PREFIX + names[i];
-		return names;
-	}
-	var V_NAMES = prefix(['top', 'middle', 'bottom']);
-	var H_NAMES = prefix(['left', 'center', 'right']);
-	var CURSORS = [
-		['nwse', 'ns', 'nesw'],
-		[ 'ew' , null,  'ew' ],
-		['nesw', 'ns', 'nwse']];
-	
-	function Edge(float, v, h) {
+	function Edge(float, v, h, cursor) {
 		Base.call(this, 'edge', float);
 		
 		this.v = v;
 		this.h = h;
+		this.cursor = cursor;
 		
-		this.addClass(V_NAMES[v]);
-		this.addClass(H_NAMES[h]);
-		
-		this.cursor = CURSORS[v][h] + '-resize';
-		this.element.style.cursor = this.cursor;
+		this.addClass(v.className);
+		this.addClass(h.className);
+		this.element.style.cursor = cursor;
 	}
 	var prototype = inherit(Edge, base);
-	
-	Edge.TOP  = 0; Edge.MIDDLE = 1; Edge.BOTTOM = 2;
-	Edge.LEFT = 0; Edge.CENTER = 1; Edge.RIGHT  = 2;
 	
 	Edge.SIZE = 2;
 	var MIN = Edge.SIZE + Tab.HEIGHT;
@@ -694,7 +723,7 @@ var Edge = _(function (Base, base) {
 		var mh = rect.height - Tab.HEIGHT;
 		
 		switch (this.v) {
-			case Edge.TOP:
+			case EdgeDef.TOP:
 			var t = Edge.SIZE - rect.top;
 			if (dy > mh) dy = mh;
 			if (dy <  t) dy =  t;
@@ -702,19 +731,19 @@ var Edge = _(function (Base, base) {
 			rect.height -= dy;
 			break;
 			
-			case Edge.BOTTOM:
+			case EdgeDef.BOTTOM:
 			if (dy < -mh) dy = -mh;
 			rect.height += dy;
 			break;
 		}
 		switch (this.h) {
-			case Edge.LEFT:
+			case EdgeDef.LEFT:
 			if (dx > mw) dx = mw;
 			rect.left  += dx;
 			rect.width -= dx;
 			break;
 			
-			case Edge.RIGHT:
+			case EdgeDef.RIGHT:
 			var r = MIN - rect.left - rect.width;
 			if (dx < -mw) dx = -mw;
 			if (dx <   r) dx =   r;
@@ -739,10 +768,10 @@ var GuideBase = _(function (Base, base) {
 		
 		this.area = new GuideArea(this);
 		
-		this.top    = new GuideButton(this, GuideButton.TOP);
-		this.right  = new GuideButton(this, GuideButton.RIGHT);
-		this.bottom = new GuideButton(this, GuideButton.BOTTOM);
-		this.left   = new GuideButton(this, GuideButton.LEFT);
+		this.top    = new GuideButton(this, ButtonDef.TOP);
+		this.right  = new GuideButton(this, ButtonDef.RIGHT);
+		this.bottom = new GuideButton(this, ButtonDef.BOTTOM);
+		this.left   = new GuideButton(this, ButtonDef.LEFT);
 		
 		// DOM
 		this.hide();
@@ -769,7 +798,7 @@ var GuideBase = _(function (Base, base) {
 		this.button = button;
 		if (button) {
 			button.onenter();
-			this.enter(button.position);
+			this.enter(button.def);
 			this.area.show();
 		} else {
 			this.area.hide();
@@ -832,8 +861,8 @@ var GuideParent = _(function (Base, base) {
 		this.setButton(result ? null :
 			this.getButton(dragPrev.of(this.container.cRect)));
 	};
-	prototype.enter = function (position) {
-		this.area.setOuterArea(position, this.container.cRect);
+	prototype.enter = function (def) {
+		this.area.setOuterArea(def, this.container.cRect);
 	};
 	prototype.ondrop = function () {
 		if (this.button) {
@@ -854,7 +883,7 @@ var Guide = _(function (Base, base) {
 	function Guide(parent) {
 		Base.call(this, 'guidepane', parent, parent.container);
 		
-		this.center = new GuideButton(this, GuideButton.CENTER);
+		this.center = new GuideButton(this, ButtonDef.CENTER);
 		this.body.appendChild(this.center.element);
 	}
 	var prototype = inherit(Guide, base);
@@ -885,11 +914,11 @@ var Guide = _(function (Base, base) {
 		this.setButton(button);
 		return button ? true : false;
 	};
-	prototype.enter = function (position) {
+	prototype.enter = function (def) {
 		if (this.main) {
-			this.area.setMainArea(position, this.rect);
+			this.area.setMainArea(def, this.rect);
 		} else {
-			this.area.setArea(position, this.rect);
+			this.area.setArea(def, this.rect);
 		}
 	};
 	prototype.ondrop = function (contents, target) {
@@ -908,21 +937,15 @@ var Guide = _(function (Base, base) {
 
 var GuideButton = _(function (Base, base) {
 	
-	function GuideButton(parent, position) {
+	function GuideButton(parent, def) {
 		Base.call(this, 'guidebutton', parent);
 		
 		this.container = parent.container;
-		this.position = position;
+		this.def = def;
 		
-		this.body.appendChild($.createTextNode(position.char));
+		this.body.appendChild($.createTextNode(def.char));
 	}
 	var prototype = inherit(GuideButton, base);
-	
-	GuideButton.CENTER = new ButtonDef('＋', false, false);
-	GuideButton.TOP    = new ButtonDef('↑', false, false);
-	GuideButton.RIGHT  = new ButtonDef('→', true,  true);
-	GuideButton.BOTTOM = new ButtonDef('↓', false, true);
-	GuideButton.LEFT   = new ButtonDef('←', true,  false);
 	
 	GuideButton.SIZE   = 40; // px const
 	GuideButton.MARGIN =  3; // px const
@@ -954,7 +977,7 @@ var GuideButton = _(function (Base, base) {
 		var parent = target.parent;
 		contents.parent.removeChild(contents, true);
 		
-		if (this.position == GuideButton.CENTER) { // タブ追加
+		if (this.def == ButtonDef.CENTER) { // タブ追加
 			this.mergeTabs(contents, target);
 		} else
 		if (target == this.container) { // 外側
@@ -975,23 +998,23 @@ var GuideButton = _(function (Base, base) {
 	
 	prototype.test = function (layout) {
 		return layout instanceof Dock &&
-			layout.horizontal == this.position.horizontal;
+			layout.horizontal == this.def.horizontal;
 	};
 	prototype.newPane = function (contents, layout, divisor) {
 		contents.size = 1.;
-		var pane = new Pane(!this.position.horizontal);
+		var pane = new Pane(!this.def.horizontal);
 		
 		var r = layout.cRect;
-		var size = this.position.horizontal ? r.width : r.height;
+		var size = this.def.horizontal ? r.width : r.height;
 		
 		pane.size = Math.round(size / divisor - Splitter.HALF);
 		pane.appendChild(contents);
 		return pane;
 	};
 	prototype.newDock = function (child, pane) {
-		var dock = new Dock(this.position.horizontal);
+		var dock = new Dock(this.def.horizontal);
 		dock.setChild(child);
-		(this.position.last ?
+		(this.def.last ?
 			dock.lasts : dock.firsts).appendChild(pane);
 		return dock;
 	};
@@ -1008,7 +1031,7 @@ var GuideButton = _(function (Base, base) {
 	prototype.outer = function (contents, container, child) {
 		var pane = this.newPane(contents, child, 5);
 		if (this.test(child)) {
-			if (this.position.last) {
+			if (this.def.last) {
 				child.lasts.appendChild(pane);
 			} else {
 				child.firsts.prependChild(pane, true);
@@ -1021,7 +1044,7 @@ var GuideButton = _(function (Base, base) {
 	prototype.dockPane = function (contents, target, parent) {
 		var pane = this.newPane(contents, target, 3);
 		if (this.test(parent)) {
-			if (this.position.last) {
+			if (this.def.last) {
 				parent.lasts.prependChild(pane, true);
 			} else {
 				parent.firsts.appendChild(pane);
@@ -1032,21 +1055,21 @@ var GuideButton = _(function (Base, base) {
 		}
 	};
 	prototype.pane = function (contents, target, parent) {
-		if (parent.horizontal == this.position.horizontal) {
+		if (parent.horizontal == this.def.horizontal) {
 			contents.size = target.size /= 2;
 			parent.insertChild(contents,
-				this.position.last ?
+				this.def.last ?
 					parent.children[target.index + 1] :
 					target);
 		} else {
 			var refChild = parent.children[target.index + 1];
 			parent.removeChild(target, true);
 			
-			var pane = new Pane(this.position.horizontal);
+			var pane = new Pane(this.def.horizontal);
 			pane.size = target.size;
 			
 			contents.size = target.size = .5;
-			if (this.position.last) {
+			if (this.def.last) {
 				pane.appendChild(target);
 				pane.appendChild(contents);
 			} else {
@@ -1070,29 +1093,29 @@ var GuideArea = _(function (Base, base) {
 	}
 	var prototype = inherit(GuideArea, base);
 	
-	prototype.set = function (position, margin, value) {
+	prototype.set = function (def, margin, value) {
 		var px = value + Splitter.HALF + 'px';
 		var s = this.element.style;
 		s.top = s.right = s.bottom = s.left = margin;
-		switch (position) {
-			case GuideButton.TOP: s.bottom = px; break;
-			case GuideButton.RIGHT: s.left = px; break;
-			case GuideButton.BOTTOM: s.top = px; break;
-			case GuideButton.LEFT: s.right = px; break;
+		switch (def) {
+			case ButtonDef.TOP: s.bottom = px; break;
+			case ButtonDef.RIGHT: s.left = px; break;
+			case ButtonDef.BOTTOM: s.top = px; break;
+			case ButtonDef.LEFT: s.right = px; break;
 		}
 	};
 	
-	prototype.setArea = function (position, r) {
-		var d = position.horizontal ? r.width : r.height;
-		this.set(position, '0', d / 2);
+	prototype.setArea = function (def, r) {
+		var d = def.horizontal ? r.width : r.height;
+		this.set(def, '0', d / 2);
 	};
-	prototype.setMainArea = function (position, r) {
-		var d = position.horizontal ? r.width : r.height;
-		this.set(position, '0', d * 2 / 3);
+	prototype.setMainArea = function (def, r) {
+		var d = def.horizontal ? r.width : r.height;
+		this.set(def, '0', d * 2 / 3);
 	};
-	prototype.setOuterArea = function (position, r) {
-		var d = position.horizontal ? r.width : r.height;
-		this.set(position, Container.PX,
+	prototype.setOuterArea = function (def, r) {
+		var d = def.horizontal ? r.width : r.height;
+		this.set(def, Container.PX,
 			Container.MARGIN + (d - Container.M2) * 4 / 5);
 	};
 	
@@ -1530,28 +1553,12 @@ var Float = _(function (Base, base) {
 		
 		delete sub.size;
 		
-		var tl = new Edge(this, Edge.TOP,    Edge.LEFT);
-		var tc = new Edge(this, Edge.TOP,    Edge.CENTER);
-		var tr = new Edge(this, Edge.TOP,    Edge.RIGHT);
-		var ml = new Edge(this, Edge.MIDDLE, Edge.LEFT);
-		var mr = new Edge(this, Edge.MIDDLE, Edge.RIGHT);
-		var bl = new Edge(this, Edge.BOTTOM, Edge.LEFT);
-		var bc = new Edge(this, Edge.BOTTOM, Edge.CENTER);
-		var br = new Edge(this, Edge.BOTTOM, Edge.RIGHT);
-		
 		// DOM
 		this.body = createDiv('fbody');
 		this.setChild(sub);
-		this.element.appendChild(this.body);
 		
-		this.element.appendChild(tl.element);
-		this.element.appendChild(tc.element);
-		this.element.appendChild(tr.element);
-		this.element.appendChild(ml.element);
-		this.element.appendChild(mr.element);
-		this.element.appendChild(bl.element);
-		this.element.appendChild(bc.element);
-		this.element.appendChild(br.element);
+		this.element.appendChild(this.body);
+		EdgeDef.for(this);
 	}
 	var prototype = inherit(Float, base);
 	
@@ -1563,6 +1570,11 @@ var Float = _(function (Base, base) {
 		var float = new Float(sub);
 		float.rect = Rect.from(json.rect);
 		return float;
+	};
+	
+	prototype.forEdgeDef = function (v, h, cursor) {
+		var edge = new Edge(this, v, h, cursor);
+		this.element.appendChild(edge.element);
 	};
 	
 	prototype.setZ = function (zIndex) {
@@ -2348,11 +2360,9 @@ return (function () {
 		this.layout = container;
 		this.contents = container.contents;
 		
-		if (typeof addEventListener == 'function') {
-			addEventListener('resize', function () {
-				container.onresize();
-			}, false);
-		}
+		addEventListener('resize', function () {
+			container.onresize();
+		});
 	}
 	var prototype = DryDock.prototype;
 	
