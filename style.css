@@ -7,9 +7,9 @@
 	overflow: hidden;
 }
 
-.dd-body,    .dd-guide,
-.dd-floats,  .dd-fbody,
-.dd-overlay, .dd-cover {
+.dd-body,   .dd-cover,
+.dd-floats, .dd-fbody,
+.dd-guide,  .dd-overlay {
 	position: absolute;
 	top:    0;
 	right:  0;
@@ -17,13 +17,11 @@
 	left:   0;
 }
 
-
-.dd-overlay, .dd-cover {
+.dd-overlay, .dd-cover,
+.dd-guide, .dd-grabbing {
 	z-index: 16777215;
-	/* IE */
-	background-color: #000;
-	opacity: 0;
 }
+
 
 .dd-overlay, .dd-body .dd-cover,
 .dd-floating .dd-float.dd-active .dd-cover {
@@ -35,33 +33,28 @@
 }
 
 
-.dd-guide, .dd-grabbing {
-	z-index: 16777214;
-}
-
 .dd-guidepane, .dd-guidearea {
 	position: absolute;
 }
 .dd-guidebutton {
 	position: absolute;
-	width:  40px;
-	height: 40px;
+	width: 40px;
 	line-height: 40px;
-	text-align: center;
 	z-index: 1;
+	text-align: center;
 }
 
 
 .dd-float {
 	position: absolute;
 }
+.dd-fbody {
+	margin: 4px;
+	border: 2px solid;
+}
 .dd-float .dd-sub {
 	height: 100%;
 	z-index: 1;
-}
-.dd-fbody {
-	margin: 4px;
-	border: solid 2px;
 }
 
 .dd-edge {
@@ -98,13 +91,11 @@
 .dd-body {
 	margin: 6px;
 }
-
 .dd-horizontal > * {
 	float: left;
 }
 
 .dd-splitter {
-	width: 100%;
 	height: 6px;
 }
 .dd-horizontal > .dd-splitter {
@@ -120,44 +111,32 @@
 	position: relative;
 	overflow: hidden;
 }
-
 .dd-tabstrip {
-	position: absolute;
-	right: 0;
-	left:  0;
-	height: 26px;
+	height:      26px;
+	line-height: 26px;
 }
 
 .dd-tab {
 	position: relative;
 	float: left;
-	height:      26px;
-	line-height: 26px;
+	height: 100%;
 	font-size: 14px;
 	overflow: hidden;
 	cursor: default;
 }
-
 .dd-title {
 	position: absolute;
-	top:    0;
-	right:  0;
-	bottom: 0;
-	left:   0;
+	right: 0;
+	left:  0;
 	white-space: pre;
 	overflow: hidden;
 	text-overflow: ellipsis;
 }
-.dd-tab.dd-active .dd-title {
-	padding-right: 18px;
-}
 
 .dd-close {
 	display: none;
-	position: absolute;
-	top:    4px;
-	right:  4px;
-	bottom: 4px;
+	float: right;
+	margin: 4px;
 	text-align: center;
 }
 .dd-tab.dd-active .dd-close {
@@ -169,20 +148,22 @@
 
 
 .dd-main .dd-tabstrip {
-	border-bottom: solid 2px;
+	border-bottom: 2px solid;
 }
 .dd-main .dd-tab.dd-active {
-	height: 28px;
+	height:      28px;
 	line-height: 28px;
 }
-
 .dd-main .dd-title {
 	margin-right: 10px;
 	margin-left:  10px;
 }
 
+.dd-main .dd-tab.dd-active .dd-title {
+	margin-right: 24px;
+}
 .dd-floating .dd-main .dd-tab.dd-active .dd-title {
-	padding-right: 0;
+	margin-right: 10px;
 }
 .dd-main .dd-close {
 	width: 20px;
@@ -199,6 +180,9 @@
 	margin-left:  8px;
 }
 
+.dd-sub .dd-tab.dd-active .dd-title {
+	margin-right: 22px;
+}
 .dd-sub .dd-close {
 	width: 18px;
 	line-height: 18px;
@@ -214,23 +198,31 @@
 }
 
 .dd-content {
+	display: none;
 	position: relative;
 	z-index: 0;
-	display: none;
 }
 .dd-content.dd-active {
 	display: block;
 }
-.dd-content, .dd-content > * {
+
+.dd-content {
+	height: 100%;
+}
+.dd-content > * {
+	display: block;
 	width:  100%;
 	height: 100%;
 }
-
-.dd-content > * {
-	display: block;
-}
 .dd-content > iframe {
 	border: none;
+}
+
+
+/* IE */
+.dd-overlay, .dd-cover, .dd-edge {
+	opacity: 0;
+	background-color: #000;
 }
 
 
