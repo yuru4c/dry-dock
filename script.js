@@ -214,6 +214,7 @@ var ButtonDef = (function () {
 		this.horizontal = horizontal;
 		this.last = last;
 	}
+	var prototype = ButtonDef.prototype;
 	
 	ButtonDef.TOP    = new ButtonDef('↑', false, false);
 	ButtonDef.RIGHT  = new ButtonDef('→', true,  true);
@@ -221,25 +222,30 @@ var ButtonDef = (function () {
 	ButtonDef.LEFT   = new ButtonDef('←', true,  false);
 	ButtonDef.CENTER = new ButtonDef('＋', false, false);
 	
+	prototype.sizeOf = function (rect) {
+		var dim = this.horizontal ? rect.width : rect.height;
+		return dim - Splitter.SIZE;
+	};
+	
 	return ButtonDef;
 })();
 
 var ButtonPos = (function () {
 	
-	function ButtonPos(rect, margin, size) {
-		var l = size + margin;
-		
-		this.f = new Vector(margin, margin);
-		this.c = ButtonPos.center(rect, size);
+	function ButtonPos(rect) {
+		this.c = ButtonPos.center(rect);
+		this.f = new Vector(
+			GuideButton.MARGIN,
+			GuideButton.MARGIN);
 		this.l = new Vector(
-			rect.width  - l,
-			rect.height - l);
+			rect.width  - GuideButton.SM,
+			rect.height - GuideButton.SM);
 	}
 	
-	ButtonPos.center = function (rect, size) {
+	ButtonPos.center = function (rect) {
 		return new Vector(
-			(rect.width  - size) / 2,
-			(rect.height - size) / 2);
+			(rect.width  - GuideButton.SIZE) / 2,
+			(rect.height - GuideButton.SIZE) / 2);
 	};
 	
 	return ButtonPos;
@@ -470,7 +476,6 @@ var Splitter = _(function (Base, base) {
 	var prototype = inherit(Splitter, base);
 	
 	Splitter.SIZE = 6; // px const
-	Splitter.HALF = Splitter.SIZE / 2;
 	
 	prototype.onmousedown = function () {
 		base.onmousedown.call(this);
@@ -832,8 +837,7 @@ var GuideParent = _(function (Base, base) {
 	prototype.ondrag = function () {
 		if (this.firstDrag) {
 			this.container.calcRect();
-			var pos = new ButtonPos(this.container.cRect,
-				GuideButton.MARGIN, GuideButton.SIZE);
+			var pos = new ButtonPos(this.container.cRect);
 			
 			this.top   .setPos(pos.f.y, pos.c.x);
 			this.right .setPos(pos.c.y, pos.l.x);
@@ -892,7 +896,7 @@ var Guide = _(function (Base, base) {
 		this.rect = target.cRect.of(this.container.cRect);
 		this.setRect(this.rect);
 		
-		var c = ButtonPos.center(this.rect, GuideButton.SIZE);
+		var c = ButtonPos.center(this.rect);
 		this.top   .setPos(c.y - GuideButton.SM, c.x);
 		this.right .setPos(c.y, c.x + GuideButton.SM);
 		this.bottom.setPos(c.y + GuideButton.SM, c.x);
@@ -1003,11 +1007,9 @@ var GuideButton = _(function (Base, base) {
 	prototype.newPane = function (contents, layout, divisor) {
 		contents.size = 1.;
 		var pane = new Pane(!this.def.horizontal);
+		var size = this.def.sizeOf(layout.cRect);
 		
-		var r = layout.cRect;
-		var size = this.def.horizontal ? r.width : r.height;
-		
-		pane.size = Math.round(size / divisor - Splitter.HALF);
+		pane.size = Math.round(size / divisor);
 		pane.appendChild(contents);
 		return pane;
 	};
@@ -1094,7 +1096,7 @@ var GuideArea = _(function (Base, base) {
 	var prototype = inherit(GuideArea, base);
 	
 	prototype.set = function (def, margin, value) {
-		var px = value + Splitter.HALF + 'px';
+		var px = value + Splitter.SIZE + 'px';
 		var s = this.element.style;
 		s.top = s.right = s.bottom = s.left = margin;
 		switch (def) {
@@ -1105,18 +1107,17 @@ var GuideArea = _(function (Base, base) {
 		}
 	};
 	
-	prototype.setArea = function (def, r) {
-		var d = def.horizontal ? r.width : r.height;
-		this.set(def, '0', d / 2);
+	prototype.setArea = function (def, rect) {
+		this.set(def, '0', def.sizeOf(rect) / 2);
 	};
-	prototype.setMainArea = function (def, r) {
-		var d = def.horizontal ? r.width : r.height;
-		this.set(def, '0', d * 2 / 3);
+	prototype.setMainArea = function (def, rect) {
+		var size = def.sizeOf(rect);
+		this.set(def, '0', size - size / 3);
 	};
-	prototype.setOuterArea = function (def, r) {
-		var d = def.horizontal ? r.width : r.height;
+	prototype.setOuterArea = function (def, rect) {
+		var size = def.sizeOf(rect) - Container.M2;
 		this.set(def, Container.PX,
-			Container.MARGIN + (d - Container.M2) * 4 / 5);
+			size - size / 5 + Container.MARGIN);
 	};
 	
 	return GuideArea;
