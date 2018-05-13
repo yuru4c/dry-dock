@@ -2263,8 +2263,8 @@ var Sub = _(function (Base, base) {
 	prototype.toJSON = function () {
 		var json = base.toJSON.call(this);
 		json.active = this.active.index;
-		json.size = this.size;
 		if (this.parent instanceof Pane) {
+			json.size = this.size;
 			json.type = 'contents';
 		}
 		return json;
