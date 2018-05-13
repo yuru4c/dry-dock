@@ -415,9 +415,8 @@ var Draggable = _(function (Base, base) {
 		
 		var self = this;
 		function mousedown(event) {
-			if (event.target == this ||
-			    event.target == self.body) {
-				
+			var target = event.target;
+			if (target == this || target == self.body) {
 				if (event.button) {
 					self.activate();
 				} else {
