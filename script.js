@@ -193,7 +193,7 @@ var EdgeDef = (function () {
 		[NESW,  NS , NWSE]
 	];
 	
-	EdgeDef.for = function (object) {
+	EdgeDef.forEach = function (object) {
 		for (var i = 0; i < 3; i++) {
 		for (var j = 0; j < 3; j++) {
 			var cursor = CURSORS[i][j];
@@ -415,7 +415,7 @@ var Draggable = _(function (Base, base) {
 		
 		var self = this;
 		function mousedown(event) {
-			if (event.target == self.element ||
+			if (event.target == this ||
 			    event.target == self.body) {
 				
 				if (event.button) {
@@ -1009,7 +1009,7 @@ var GuideButton = _(function (Base, base) {
 		var pane = new Pane(!this.def.horizontal);
 		var size = this.def.sizeOf(layout.cRect);
 		
-		pane.size = Math.round(size / divisor);
+		pane.size = Math.floor(size / divisor);
 		pane.appendChild(contents);
 		return pane;
 	};
@@ -1326,10 +1326,16 @@ var Container = _(function (Base, base) {
 		this.floats = new Floats(this);
 		this.guide  = new GuideParent(this);
 		
-		this.element.appendChild(this.floats.element);
 		this.element.appendChild(this.body);
+		this.element.appendChild(this.floats.element);
 		this.element.appendChild(this.guide.element);
 		this.element.appendChild(this.overlay);
+		this.element.onmousedown = function (event) {
+			if (event.target == this) {
+				self.activate();
+				return false;
+			}
+		};
 		
 		element.appendChild(this.element);
 		
@@ -1472,20 +1478,12 @@ var Floats = _(function (Base, base) {
 		
 		var self = this;
 		this.parent = container;
-		
-		this.element.onmousedown = function (event) {
-			if (event.target == self.element) {
-				container.activate();
-				return false;
-			}
-		};
 	}
 	var prototype = inherit(Floats, base);
 	
 	prototype.appendChild = function (float) {
-		base.appendChild.call(this, float);
-		
 		float.setZ(this.children.length);
+		base.appendChild.call(this, float);
 		float.layout();
 	};
 	prototype.removeChild = function (float, pauseLayout) {
@@ -1493,8 +1491,8 @@ var Floats = _(function (Base, base) {
 		if (pauseLayout) return;
 		
 		var length = this.children.length;
-		for (var i = float.index; i < length; ) {
-			this.children[i].setZ(++i);
+		for (var i = float.index; i < length; i++) {
+			this.children[i].setZ(i);
 		}
 		
 		if (length) return;
@@ -1506,28 +1504,31 @@ var Floats = _(function (Base, base) {
 		}
 	};
 	
+	prototype.calcRect = function () {
+		var length = this.children.length - 1;
+		for (var i = 0; i < length; i++) {
+			this.children[i].calcRect();
+		}
+	}
 	prototype.getChild = function (client) {
-		if (this.cRect.contains(client)) {
-			for (var i = this.children.length - 2; i >= 0; i--) {
-				var child = this.children[i].getChild(client);
-				if (child) return child;
-			}
+		for (var i = this.children.length - 2; i >= 0; i--) {
+			var child = this.children[i].getChild(client);
+			if (child) return child;
 		}
 		return null;
 	};
 	
 	prototype.activateChild = function (float) {
-		var i = float.index;
 		base.activateChild.call(this, float);
 		
 		this.children.splice(float.index, 1);
 		this.children.push(float);
 		
 		var length = this.children.length;
-		while (i < length) {
+		for (var i = float.index; i < length; i++) {
 			var child = this.children[i];
 			child.index = i;
-			child.setZ(++i);
+			child.setZ(i);
 		}
 	};
 	
@@ -1559,7 +1560,7 @@ var Float = _(function (Base, base) {
 		this.setChild(sub);
 		
 		this.element.appendChild(this.body);
-		EdgeDef.for(this);
+		EdgeDef.forEach(this);
 	}
 	var prototype = inherit(Float, base);
 	

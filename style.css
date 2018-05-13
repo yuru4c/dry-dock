@@ -7,9 +7,8 @@
 	overflow: hidden;
 }
 
-.dd-body,   .dd-cover,
-.dd-floats, .dd-fbody,
-.dd-guide,  .dd-overlay {
+.dd-body, .dd-guide, .dd-overlay,
+.dd-fbody, .dd-cover {
 	position: absolute;
 	top:    0;
 	right:  0;
@@ -200,15 +199,13 @@
 .dd-content {
 	display: none;
 	position: relative;
+	height: 100%;
 	z-index: 0;
 }
 .dd-content.dd-active {
 	display: block;
 }
 
-.dd-content {
-	height: 100%;
-}
 .dd-content > * {
 	display: block;
 	width:  100%;
@@ -255,16 +252,12 @@
 	border-color: #007acc;
 }
 
-.dd-splitter.dd-grabbing {
-	background-color: #161618;
-}
-
 .dd-grabbing {
 	opacity: .75;
 }
 
-.dd-contents {
-	background-color: #252526;
+.dd-splitter.dd-grabbing {
+	background-color: #161618;
 }
 
 .dd-main .dd-tabstrip {
@@ -316,4 +309,8 @@
 .dd-sub .dd-close.dd-active {
 	color: #ffffff;
 	background-color: #1f1f20;
+}
+
+.dd-content {
+	background-color: #252526;
 }
