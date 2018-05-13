@@ -52,6 +52,8 @@
 	border: 2px solid;
 }
 .dd-float .dd-sub {
+	position: absolute;
+	width:  100%;
 	height: 100%;
 	z-index: 1;
 }
@@ -198,7 +200,8 @@
 
 .dd-content {
 	display: none;
-	position: relative;
+	position: absolute;
+	width:  100%;
 	height: 100%;
 	z-index: 0;
 }
@@ -219,6 +222,7 @@
 /* IE */
 .dd-overlay, .dd-cover, .dd-edge {
 	opacity: 0;
+	filter: alpha(opacity=0);
 	background-color: #000;
 }
 
@@ -234,6 +238,7 @@
 
 .dd-guidebutton {
 	background-color: #161618;
+	filter: alpha(opacity=75);
 	opacity: .75;
 }
 .dd-guidebutton.dd-hover {
@@ -242,6 +247,7 @@
 }
 .dd-guidearea {
 	background-color: #3399ff;
+	filter: alpha(opacity=25);
 	opacity: .25;
 }
 
@@ -253,6 +259,7 @@
 }
 
 .dd-grabbing {
+	filter: alpha(opacity=75);
 	opacity: .75;
 }
 

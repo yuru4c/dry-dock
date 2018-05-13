@@ -126,8 +126,8 @@ var Rect = (function () {
 		return new Rect(
 			rect.top,
 			rect.left,
-			rect.width,
-			rect.height);
+			rect.width  || rect.right  - rect.left,
+			rect.height || rect.bottom - rect.top);
 	};
 	
 	prototype.plus = function (vector) {
@@ -415,10 +415,12 @@ var Draggable = _(function (Base, base) {
 		
 		var self = this;
 		function mousedown(event) {
-			if (event.target == this ||
-			    event.target == self.body) {
+			var ie = !event;
+			if (ie) event = window.event;
+			var target = event.target || event.srcElement;
+			if (target == this || target == self.body) {
 				
-				if (event.button) {
+				if (event.button > ie) {
 					self.activate();
 				} else {
 					var container = self.getContainer();
@@ -1314,7 +1316,7 @@ var Container = _(function (Base, base) {
 		for (var node = element.firstChild; node; ) {
 			var next = node.nextSibling;
 			element.removeChild(node);
-			if (node.nodeType == Node.ELEMENT_NODE) {
+			if (node.nodeType == 1) {
 				var id = node.id;
 				if (id) this.contents[id] = new Content(node, id);
 			}
@@ -1331,7 +1333,9 @@ var Container = _(function (Base, base) {
 		this.element.appendChild(this.guide.element);
 		this.element.appendChild(this.overlay);
 		this.element.onmousedown = function (event) {
-			if (event.target == this) {
+			event = event || window.event;
+			var target = event.target || event.srcElement;
+			if (target == this) {
 				self.activate();
 				return false;
 			}
@@ -1340,10 +1344,11 @@ var Container = _(function (Base, base) {
 		element.appendChild(this.element);
 		
 		this.mousemove = function (event) {
+			event = event || window.event;
 			var vector = Vector.from(event);
 			if (self.hardDrag) {
 				var abs2 = vector.minus(self.dragStart).abs2();
-				if (abs2 < Draggable.ABS2) return;
+				if (abs2 < Draggable.ABS2) return false;
 				self.hardDrag = false;
 			}
 			
@@ -1358,6 +1363,7 @@ var Container = _(function (Base, base) {
 			var resDiff = self.dragging.ondrag(sumDiff);
 			self.dragDiff = resDiff ?
 				sumDiff.minus(resDiff) : Vector.ZERO;
+			return false;
 		};
 		this.mouseup = function () {
 			this.onmousemove = null;
@@ -2362,9 +2368,11 @@ return (function () {
 		this.layout = container;
 		this.contents = container.contents;
 		
-		addEventListener('resize', function () {
-			container.onresize();
-		});
+		if (typeof addEventListener == 'function') {
+			addEventListener('resize', function () {
+				container.onresize();
+			});
+		}
 	}
 	var prototype = DryDock.prototype;
 	
@@ -2379,6 +2387,33 @@ return (function () {
 	function center(value) {
 		return value / 2 + Tab.HEIGHT * (Math.random() - .5);
 	}
+	
+	var json = typeof JSON == 'undefined' ? {
+		parse: function (json) {
+			return eval('(' + json + ')');
+		},
+		stringify: function stringify(value) {
+			switch (typeof value) {
+				case 'string': return '"' + value + '"';
+				case 'object':
+				if (typeof value.toJSON == 'function')
+					return stringify(value.toJSON());
+				var strs = [];
+				if (value instanceof Array) {
+					for (var i = 0; i < value.length; i++)
+						strs[i] = stringify(value[i]);
+					return '[' + strs + ']';
+				}
+				for (var k in value)
+					if (value.hasOwnProperty(k))
+						strs.push(
+							stringify(k) + ':' +
+							stringify(value[k]));
+				return '{' + strs + '}';
+			}
+			return String(value);
+		}
+	} : JSON;
 	
 	prototype.open = function (element) {
 		var content = new Content(element);
@@ -2420,11 +2455,11 @@ return (function () {
 	};
 	
 	prototype.serialize = function () {
-		return JSON.stringify(this.layout);
+		return json.stringify(this.layout);
 	};
 	prototype.restore = function (jsonString) {
 		this.layout.init();
-		this.layout.fromJSON(JSON.parse(jsonString));
+		this.layout.fromJSON(json.parse(jsonString));
 		this.layout.activate();
 		this.layout.onresize();
 	};
