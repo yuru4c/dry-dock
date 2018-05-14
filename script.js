@@ -196,10 +196,7 @@ var EdgeDef = (function () {
 	EdgeDef.forEach = function (object) {
 		for (var i = 0; i < 3; i++) {
 		for (var j = 0; j < 3; j++) {
-			var cursor = CURSORS[i][j];
-			if (cursor) {
-				object.forEdgeDef(VS[i], HS[j], cursor);
-			}
+			object.forEdgeDef(VS[i], HS[j], CURSORS[i][j]);
 		}}
 	};
 	
@@ -1038,7 +1035,7 @@ var GuideButton = _(function (Base, base) {
 			if (this.def.last) {
 				child.lasts.appendChild(pane);
 			} else {
-				child.firsts.prependChild(pane, true);
+				child.firsts.prependChild(pane);
 			}
 		} else {
 			container.removeChild();
@@ -1049,7 +1046,7 @@ var GuideButton = _(function (Base, base) {
 		var pane = this.newPane(contents, target, 3);
 		if (this.test(parent)) {
 			if (this.def.last) {
-				parent.lasts.prependChild(pane, true);
+				parent.lasts.prependChild(pane);
 			} else {
 				parent.firsts.appendChild(pane);
 			}
@@ -1482,7 +1479,6 @@ var Floats = _(function (Base, base) {
 	function Floats(container) {
 		Base.call(this, 'floats');
 		
-		var self = this;
 		this.parent = container;
 	}
 	var prototype = inherit(Floats, base);
@@ -1515,7 +1511,7 @@ var Floats = _(function (Base, base) {
 		for (var i = 0; i < length; i++) {
 			this.children[i].calcRect();
 		}
-	}
+	};
 	prototype.getChild = function (client) {
 		for (var i = this.children.length - 2; i >= 0; i--) {
 			var child = this.children[i].getChild(client);
@@ -1581,8 +1577,10 @@ var Float = _(function (Base, base) {
 	};
 	
 	prototype.forEdgeDef = function (v, h, cursor) {
-		var edge = new Edge(this, v, h, cursor);
-		this.element.appendChild(edge.element);
+		if (cursor) {
+			var edge = new Edge(this, v, h, cursor);
+			this.element.appendChild(edge.element);
+		}
 	};
 	
 	prototype.setZ = function (zIndex) {
@@ -1816,7 +1814,7 @@ var DockPane = _(function (Base, base) {
 		var i, length = dockPane.children.length;
 		if (this.last) {
 			for (i = length - 1; i >= 0; i--) {
-				this.prependChild(dockPane.children[i], true);
+				this.prependChild(dockPane.children[i]);
 			}
 		} else {
 			for (i = 0; i < length; i++) {
@@ -1845,22 +1843,15 @@ var DockPane = _(function (Base, base) {
 		
 		this.parent.onRemove();
 	};
-	prototype.prependChild = function (child, last) {
+	prototype.prependChild = function (child) {
 		var ref = this.children[0];
 		if (ref == null) {
 			this.appendChild(child);
 			return;
 		}
 		this.expand(child);
-		if (last) {
-			var i = ref.index;
-			var element = ref.element;
-			this.insertChild(child, ref);
-			this.insertSplitter(i + this.last, element);
-		} else {
-			this.insertSplitter(ref.index, ref.element);
-			this.insertChild(child, ref);
-		}
+		this.insertChild(child, ref);
+		this.insertSplitter(+this.last, ref.element);
 	};
 	
 	prototype.onresize = function (width, height) {
