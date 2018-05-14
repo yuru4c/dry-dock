@@ -196,10 +196,7 @@ var EdgeDef = (function () {
 	EdgeDef.forEach = function (object) {
 		for (var i = 0; i < 3; i++) {
 		for (var j = 0; j < 3; j++) {
-			var cursor = CURSORS[i][j];
-			if (cursor) {
-				object.forEdgeDef(VS[i], HS[j], cursor);
-			}
+				object.forEdgeDef(VS[i], HS[j], CURSORS[i][j]);
 		}}
 	};
 	
@@ -1475,7 +1472,6 @@ var Floats = _(function (Base, base) {
 	function Floats(container) {
 		Base.call(this, 'floats');
 		
-		var self = this;
 		this.parent = container;
 	}
 	var prototype = inherit(Floats, base);
@@ -1508,7 +1504,7 @@ var Floats = _(function (Base, base) {
 		for (var i = 0; i < length; i++) {
 			this.children[i].calcRect();
 		}
-	}
+	};
 	prototype.getChild = function (client) {
 		for (var i = this.children.length - 2; i >= 0; i--) {
 			var child = this.children[i].getChild(client);
@@ -1574,8 +1570,10 @@ var Float = _(function (Base, base) {
 	};
 	
 	prototype.forEdgeDef = function (v, h, cursor) {
-		var edge = new Edge(this, v, h, cursor);
-		this.element.appendChild(edge.element);
+		if (cursor) {
+			var edge = new Edge(this, v, h, cursor);
+			this.element.appendChild(edge.element);
+		}
 	};
 	
 	prototype.setZ = function (zIndex) {

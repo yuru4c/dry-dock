@@ -108,11 +108,11 @@
 
 .dd-main, .dd-sub {
 	position: relative;
-	overflow: hidden;
 }
 .dd-tabstrip {
 	height:      26px;
 	line-height: 26px;
+	max-height: 100%;
 }
 
 .dd-tab {
@@ -201,6 +201,7 @@
 	position: relative;
 	height: 100%;
 	z-index: 0;
+	overflow: hidden;
 }
 .dd-content.dd-active {
 	display: block;
