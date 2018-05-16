@@ -417,9 +417,8 @@ var Draggable = _(function (Base, base) {
 			var target = event.target || event.srcElement;
 			if (target == this || target == self.body) {
 				
-				if (event.button > ie) {
-					self.activate();
-				} else {
+				if (event.button > ie) self.activate();
+				else {
 					var container = self.getContainer();
 					container.setDragging(self);
 					container.mousedown(event);
@@ -1222,10 +1221,12 @@ var Mutable = _(function (Base, base) {
 		}
 		this.body.removeChild(child.element);
 		
-		if (length && child == this.active) {
-			var index = child.index;
-			if (index == length) index = length - 1;
-			this.activateChild(this.children[index]);
+		if (child == this.active) {
+			if (length) {
+				var index = child.index;
+				if (index == length) index = length - 1;
+				this.activateChild(this.children[index]);
+			} else this.active = null;
 		}
 	};
 	prototype.replaceChild = function (child, oldChild) {
@@ -2151,13 +2152,15 @@ var Main = _(function (Base, base) {
 	prototype.toJSON = function () {
 		var children = []; var active = 0;
 		
-		var index = this.active.index;
-		var length = this.children.length;
-		for (var i = 0; i < length; i++) {
-			var child = this.children[i];
-			if (child.id) {
-				children.push(child);
-				if (i < index) active++;
+		if (this.active) {
+			var index = this.active.index;
+			var length = this.children.length;
+			for (var i = 0; i < length; i++) {
+				var child = this.children[i];
+				if (child.id) {
+					children.push(child);
+					if (i < index) active++;
+				}
 			}
 		}
 		if (active == children.length) {
