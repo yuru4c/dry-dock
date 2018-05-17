@@ -995,18 +995,13 @@ var GuideButton = _(function (Base, base) {
 		if (parent instanceof Float) parent.layout();
 	};
 	
+	prototype.sizeOf = function (layout, divisor) {
+		var size = this.def.sizeOf(layout.cRect);
+		return Math.floor(size / divisor);
+	};
 	prototype.test = function (layout) {
 		return layout instanceof Dock &&
 			layout.horizontal == this.def.horizontal;
-	};
-	prototype.newPane = function (contents, layout, divisor) {
-		contents.size = 1.;
-		var pane = new Pane(!this.def.horizontal);
-		var size = this.def.sizeOf(layout.cRect);
-		
-		pane.size = Math.floor(size / divisor);
-		pane.appendChild(contents);
-		return pane;
 	};
 	prototype.newDock = function (child, pane) {
 		var dock = new Dock(this.def.horizontal);
@@ -1026,46 +1021,51 @@ var GuideButton = _(function (Base, base) {
 	};
 	
 	prototype.outer = function (contents, container, child) {
-		var pane = this.newPane(contents, child, 5);
+		contents.size = this.sizeOf(child, 5);
 		if (this.test(child)) {
 			if (this.def.last) {
-				child.lasts.appendChild(pane);
+				child.lasts.appendChild(contents);
 			} else {
-				child.firsts.prependChild(pane);
+				child.firsts.prependChild(contents);
 			}
 		} else {
 			container.removeChild();
-			container.setChild(this.newDock(child, pane));
+			container.setChild(this.newDock(child, contents));
 		}
 	};
 	prototype.dockPane = function (contents, target, parent) {
-		var pane = this.newPane(contents, target, 3);
+		contents.size = this.sizeOf(target, 3);
 		if (this.test(parent)) {
 			if (this.def.last) {
-				parent.lasts.prependChild(pane);
+				parent.lasts.prependChild(contents);
 			} else {
-				parent.firsts.appendChild(pane);
+				parent.firsts.appendChild(contents);
 			}
 		} else {
 			parent.removeChild();
-			parent.setChild(this.newDock(target, pane));
+			parent.setChild(this.newDock(target, contents));
 		}
 	};
 	prototype.pane = function (contents, target, parent) {
-		if (parent.horizontal == this.def.horizontal) {
-			contents.size = target.size /= 2;
-			parent.insertChild(contents,
-				this.def.last ?
-					parent.children[target.index + 1] :
-					target);
+		if (parent instanceof Pane &&
+			parent.horizontal == this.def.horizontal) {
+			
+			var size = parent.sizes[target.index];
+			parent.remSize -= Splitter.SIZE;
+			parent.calcSizes();
+			
+			contents.size = target.size =
+				(size - Splitter.SIZE) / (parent.remSize * 2);
+			parent.insertChild(contents, this.def.last ?
+				parent.children[target.index + 1] : target);
 		} else {
 			var refChild = parent.children[target.index + 1];
 			parent.removeChild(target, true);
 			
 			var pane = new Pane(this.def.horizontal);
 			pane.size = target.size;
-			
 			contents.size = target.size = .5;
+			
 			if (this.def.last) {
 				pane.appendChild(target);
 				pane.appendChild(contents);
@@ -1073,7 +1073,6 @@ var GuideButton = _(function (Base, base) {
 				pane.appendChild(contents);
 				pane.appendChild(target);
 			}
-			
 			parent.insertChild(pane, refChild);
 		}
 	};
@@ -1657,11 +1656,10 @@ var Dock = _(function (Base, base) {
 			
 			parent.firsts.merge(this.child.firsts);
 			parent.lasts .merge(this.child.lasts);
-			
 			parent.setChild(this.child.child);
-			return;
+		} else {
+			parent.setChild(this.child);
 		}
-		parent.setChild(this.child);
 	};
 	
 	prototype.calcRect = function () {
@@ -1754,6 +1752,26 @@ var PaneBase = _(function (Base, base) {
 		this.body.insertBefore(splitter.element, refElement);
 	};
 	
+	prototype.fromJSON = function (container, json) {
+		var length = json.children.length;
+		for (var i = 0; i < length; i++) {
+			var child = json.children[i];
+			switch (child.type) {
+				case 'pane':
+				var newPane = Pane.fromJSON(container, child);
+				newPane.size = child.size;
+				this.appendChild(newPane);
+				break;
+				
+				case 'sub':
+				var newSub = Sub.fromJSON(container, child);
+				newSub.size = child.size;
+				this.appendChild(newSub);
+				break;
+			}
+		}
+	};
+	
 	return PaneBase;
 })(Mutable);
 
@@ -1830,22 +1848,29 @@ var DockPane = _(function (Base, base) {
 			this.appendSplitter();
 		}
 	};
-	prototype.removeChild = function (child) {
+	prototype.removeChild = function (child, pauseLayout) {
 		this.size -= child.size + Splitter.SIZE;
 		base.removeChild.call(this, child);
 		this.removeSplitter(child.index);
 		
+		if (pauseLayout) return;
+		
+		this.getContainer().updateMinSize();
 		this.parent.onRemove();
 	};
-	prototype.prependChild = function (child) {
-		var ref = this.children[0];
-		if (ref == null) {
+	prototype.insertChild = function (child, refChild) {
+		if (refChild == null) {
 			this.appendChild(child);
 			return;
 		}
 		this.expand(child);
-		this.insertChild(child, ref);
-		this.insertSplitter(+this.last, ref.element);
+		base.insertChild.call(this, child, refChild);
+		this.insertSplitter(
+			child.index + this.last,
+			refChild.element);
+	};
+	prototype.prependChild = function (child) {
+		this.insertChild(child, this.children[0]);
 	};
 	
 	prototype.onresize = function (width, height) {
@@ -1869,16 +1894,6 @@ var DockPane = _(function (Base, base) {
 	// 	return this;
 	// };
 	
-	prototype.fromJSON = function (container, json) {
-		var length = json.children.length;
-		for (var i = 0; i < length; i++) {
-			var child = json.children[i];
-			var pane = Pane.fromJSON(container, child);
-			pane.size = child.size;
-			this.appendChild(pane);
-		}
-	};
-	
 	return DockPane;
 })(PaneBase);
 
@@ -1893,34 +1908,13 @@ var Pane = _(function (Base, base) {
 	
 	Pane.fromJSON = function (container, json) {
 		var pane = new Pane(json.horizontal);
-		
-		var length = json.children.length;
-		for (var i = 0; i < length; i++) {
-			var child = json.children[i];
-			switch (child.type) {
-				case 'pane':
-				var newPane = Pane.fromJSON(container, child);
-				newPane.size = child.size;
-				pane.appendChild(newPane);
-				break;
-				
-				case 'contents':
-				var newSub = Sub.fromJSON(container, child);
-				newSub.size = child.size;
-				pane.appendChild(newSub);
-				break;
-			}
-		}
+		pane.fromJSON(container, json);
 		return pane;
 	};
 	
 	prototype.onSplitterDragStart = function (splitter) {
 		if (this.remSize == 0) return;
-		
-		var length = this.children.length;
-		for (var i = 0; i < length; i++) {
-			this.children[i].size = this.sizes[i] / this.remSize;
-		}
+		this.calcSizes();
 	};
 	prototype.onSplitterDrag = function (i, delta) {
 		if (this.remSize == 0) return;
@@ -1939,14 +1933,16 @@ var Pane = _(function (Base, base) {
 	};
 	
 	prototype.merge = function (pane, ref) {
-		this.removeChild(ref, true);
-		var refChild = this.children[ref.index];
 		var length = pane.children.length;
-		for (var j = 0; j < length; j++) {
-			var child = pane.children[j];
-			child.size *= ref.size;
-			this.insertChild(child, refChild);
+		this.remSize -= Splitter.SIZE * (length - 1);
+		this.calcSizes();
+		
+		for (var i = 0; i < length; i++) {
+			var child = pane.children[i];
+			child.size = pane.sizes[i] / this.remSize;
+			this.insertChild(child, ref);
 		}
+		this.removeChild(ref, true);
 	};
 	
 	prototype.appendChild = function (child) {
@@ -1961,18 +1957,20 @@ var Pane = _(function (Base, base) {
 		}
 		if (pauseLayout) return;
 		
-		var container = this.getContainer();
-		
 		var length = this.children.length;
-		if (length == 1 && this.parent instanceof Pane) {
+		if (length == 1) {
 			var remChild = this.children[0];
-			if (remChild instanceof Pane) {
+			if (remChild    instanceof Pane &&
+			    this.parent instanceof Pane) {
+				
 				this.parent.merge(remChild, this);
 			} else {
 				remChild.size = this.size;
 				this.parent.replaceChild(remChild, this);
 			}
-		} else if (length) {
+			return;
+		}
+		if (length) {
 			var i;
 			if (this.sizes[child.index] == this.remSize) {
 				var prop = 1. / length;
@@ -1985,11 +1983,7 @@ var Pane = _(function (Base, base) {
 					this.children[i].size /= rem;
 				}
 			}
-		} else {
-			this.parent.removeChild(this);
-			container.updateMinSize();
-		}
-		container.layout();
+		} else this.parent.removeChild(this, false);
 	};
 	prototype.insertChild = function (child, refChild) {
 		if (refChild == null) {
@@ -1998,6 +1992,13 @@ var Pane = _(function (Base, base) {
 		}
 		base.insertChild.call(this, child, refChild);
 		this.insertSplitter(child.index, refChild.element);
+	};
+	
+	prototype.calcSizes = function () {
+		var length = this.children.length;
+		for (var i = 0; i < length; i++) {
+			this.children[i].size = this.sizes[i] / this.remSize;
+		}
 	};
 	
 	prototype.divideSizes = function (size) {
@@ -2227,6 +2228,7 @@ var Sub = _(function (Base, base) {
 		
 		var rect = this.getRectOf(container);
 		this.parent.removeChild(this, false);
+		container.layout();
 		this.unsetSize();
 		return this.openFloat(container, rect, delta);
 	};
@@ -2238,7 +2240,9 @@ var Sub = _(function (Base, base) {
 		base.removeChild.call(this, content);
 		
 		if (this.children.length) return;
+		var container = this.getContainer();
 		this.parent.removeChild(this, false);
+		container.layout();
 	};
 	
 	prototype.onresize = function (width, height) {
@@ -2256,9 +2260,9 @@ var Sub = _(function (Base, base) {
 	prototype.toJSON = function () {
 		var json = base.toJSON.call(this);
 		json.active = this.active.index;
-		if (this.parent instanceof Pane) {
+		if (this.parent instanceof PaneBase) {
 			json.size = this.size;
-			json.type = 'contents';
+			json.type = 'sub';
 		}
 		return json;
 	};
