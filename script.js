@@ -219,9 +219,42 @@ var ButtonDef = (function () {
 	ButtonDef.LEFT   = new ButtonDef('←', true,  false);
 	ButtonDef.CENTER = new ButtonDef('＋', false, false);
 	
+	function Diff(i, diff) {
+		this.i = i;
+		this.diff = diff;
+	}
+	function Insert(size, tSize, t, n) {
+		this.size = size;
+		this.tSize = tSize;
+		this.t = t;
+		this.n = n;
+	}
+	
 	prototype.sizeOf = function (rect) {
-		var dim = this.horizontal ? rect.width : rect.height;
-		return dim - Splitter.SIZE;
+		var size = this.horizontal ?
+			rect.width : rect.height;
+		return size - Splitter.SIZE;
+	};
+	
+	prototype.calcInsert = function (target) {
+		var parent = target.parent;
+		var ti = target.index;
+		var ni = this.last ? ti + 1 : ti - 1;
+		
+		var tSize = target.size;
+		var nSize = parent.children[ni].size;
+		var sSize = tSize + nSize;
+		
+		var tcSize = parent.sizes[ti];
+		var ncSize = parent.sizes[ni];
+		var scSize = tcSize + ncSize;
+		
+		var icSize = (scSize - Splitter.SIZE) / 3;
+		var acSize = icSize + Splitter.SIZE;
+		
+		return new Insert(icSize, tcSize,
+			new Diff(ti, acSize * tSize / sSize),
+			new Diff(ni, acSize * nSize / sSize));
 	};
 	
 	return ButtonDef;
@@ -666,7 +699,7 @@ var Close = _(function (Base, base) {
 	prototype.tagName = 'a';
 	
 	prototype.test = function () {
-		return this.cRect.contains(this.container.dragPrev);
+		return this.cRect.contains(this.container.point);
 	};
 	
 	prototype.onmousedown = function () {
@@ -845,10 +878,9 @@ var GuideParent = _(function (Base, base) {
 			this.show();
 			this.firstDrag = false;
 		}
+		var point = this.container.point;
 		
-		var dragPrev = this.container.dragPrev;
-		
-		var target = this.container.getChild(dragPrev);
+		var target = this.container.getChild(point);
 		if (target != this.target) {
 			this.target = target;
 			if (target) this.child.onenter(target);
@@ -856,12 +888,12 @@ var GuideParent = _(function (Base, base) {
 		}
 		var result = false;
 		if (target) {
-			var relative = dragPrev.of(target.cRect);
+			var relative = point.of(target.cRect);
 			result = this.child.ondrag(relative);
 		}
 		
 		this.setButton(result ? null :
-			this.getButton(dragPrev.of(this.container.cRect)));
+			this.getButton(point.of(this.container.cRect)));
 	};
 	prototype.enter = function (def) {
 		this.area.setOuterArea(def, this.container.cRect);
@@ -891,6 +923,10 @@ var Guide = _(function (Base, base) {
 	var prototype = inherit(Guide, base);
 	
 	prototype.onenter = function (target) {
+		var parent = target.parent;
+		this.paneTarget = parent instanceof Pane ?
+			target : null;
+		
 		this.rect = target.cRect.of(this.container.cRect);
 		this.setRect(this.rect);
 		
@@ -901,7 +937,7 @@ var Guide = _(function (Base, base) {
 		this.left  .setPos(c.y, c.x - GuideButton.SM);
 		this.center.setPos(c.y, c.x);
 		
-		var float = target.parent instanceof Float;
+		var float = parent instanceof Float;
 		this.main = target instanceof Main;
 		this.top   .setDisable(float);
 		this.right .setDisable(float);
@@ -911,7 +947,7 @@ var Guide = _(function (Base, base) {
 		
 		this.show();
 	};
-	prototype.ondrag = function (vector) { // 相対座標
+	prototype.ondrag = function (vector) {
 		var button = this.getButton(vector);
 		this.setButton(button);
 		return button ? true : false;
@@ -919,9 +955,20 @@ var Guide = _(function (Base, base) {
 	prototype.enter = function (def) {
 		if (this.main) {
 			this.area.setMainArea(def, this.rect);
-		} else {
-			this.area.setArea(def, this.rect);
+			return;
 		}
+		if (this.paneTarget) {
+			var pane = this.paneTarget.parent;
+			if (pane.horizontal == def.horizontal &&
+				this.paneTarget.index != (def.last ?
+					pane.children.length - 1 : 0)) {
+				
+				this.area.setInsertArea(def, this.rect,
+					this.paneTarget);
+				return;
+			}
+		}
+		this.area.setArea(def, this.rect);
 	};
 	prototype.ondrop = function (contents, target) {
 		if (this.button) this.drop(contents, target);
@@ -989,8 +1036,19 @@ var GuideButton = _(function (Base, base) {
 		if (target instanceof Main) { // Dock 追加
 			this.dockPane(contents, target, parent);
 			this.container.updateMinSize();
+		} else
+		if (parent instanceof Pane &&
+			parent.horizontal == this.def.horizontal) {
+			
+			if (target.index == (this.def.last ?
+				parent.children.length - 1 : 0)) {
+				
+				this.splitPane(contents, target, parent);
+			} else {
+				this.insertPane(contents, target, parent);
+			}
 		} else {
-			this.pane(contents, target, parent);
+			this.newPane(contents, target, parent);
 		}
 		
 		target.activate();
@@ -1022,7 +1080,6 @@ var GuideButton = _(function (Base, base) {
 		}
 		target.activateChild(active);
 	};
-	
 	prototype.outer = function (contents, container, child) {
 		contents.size = this.sizeOf(child, 5);
 		if (this.test(child)) {
@@ -1049,35 +1106,48 @@ var GuideButton = _(function (Base, base) {
 			parent.setChild(this.newDock(target, contents));
 		}
 	};
-	prototype.pane = function (contents, target, parent) {
-		if (parent instanceof Pane &&
-			parent.horizontal == this.def.horizontal) {
-			
-			var size = parent.sizes[target.index];
-			parent.remSize -= Splitter.SIZE;
-			parent.calcSizes();
-			
-			contents.size = target.size =
-				(size - Splitter.SIZE) / (parent.remSize * 2);
-			parent.insertChild(contents, this.def.last ?
-				parent.children[target.index + 1] : target);
+	
+	prototype.splitPane = function (contents, target, parent) {
+		var size = parent.sizes[target.index];
+		parent.remSize -= Splitter.SIZE;
+		parent.calcSizes();
+		
+		contents.size = target.size =
+			(size - Splitter.SIZE) /
+			(parent.remSize * 2);
+		parent.insertChild(contents, this.def.last ?
+			parent.children[target.index + 1] : target);
+	};
+	prototype.insertPane = function (contents, target, parent) {
+		var ins = this.def.calcInsert(target);
+		
+		parent.sizes[ins.t.i] -= ins.t.diff;
+		parent.sizes[ins.n.i] -= ins.n.diff;
+		parent.sizes.splice(this.def.last ?
+			ins.n.i : ins.t.i, 0, ins.size);
+		
+		parent.insertChild(contents, this.def.last ?
+			parent.children[ins.t.i + 1] : target);
+		
+		parent.remSize -= Splitter.SIZE;
+		parent.calcSizes();
+	};
+	prototype.newPane = function (contents, target, parent) {
+		var ref = parent.children[target.index + 1];
+		parent.removeChild(target, true);
+		
+		var pane = new Pane(this.def.horizontal);
+		pane.size = target.size;
+		contents.size = target.size = .5;
+		
+		if (this.def.last) {
+			pane.appendChild(target);
+			pane.appendChild(contents);
 		} else {
-			var refChild = parent.children[target.index + 1];
-			parent.removeChild(target, true);
-			
-			var pane = new Pane(this.def.horizontal);
-			pane.size = target.size;
-			contents.size = target.size = .5;
-			
-			if (this.def.last) {
-				pane.appendChild(target);
-				pane.appendChild(contents);
-			} else {
-				pane.appendChild(contents);
-				pane.appendChild(target);
-			}
-			parent.insertChild(pane, refChild);
+			pane.appendChild(contents);
+			pane.appendChild(target);
 		}
+		parent.insertChild(pane, ref);
 	};
 	
 	return GuideButton;
@@ -1115,6 +1185,25 @@ var GuideArea = _(function (Base, base) {
 		var size = def.sizeOf(rect) - Container.M2;
 		this.set(def, Container.PX,
 			size - size / 5 + Container.MARGIN);
+	};
+	
+	prototype.setInsertArea = function (def, rect, target) {
+		var ins = def.calcInsert(target);
+		var tPx = -ins.t.diff + ins.tSize + Splitter.SIZE + 'px';
+		var nPx = -ins.n.diff + 'px';
+		
+		var s = this.element.style;
+		s.top = s.right = s.bottom = s.left = '0';
+		switch (def) {
+			case ButtonDef.TOP:
+				s.bottom = tPx; s.top = nPx; break;
+			case ButtonDef.RIGHT:
+				s.left = tPx; s.right = nPx; break;
+			case ButtonDef.BOTTOM:
+				s.top = tPx; s.bottom = nPx; break;
+			case ButtonDef.LEFT:
+				s.right = tPx; s.left = nPx; break;
+		}
 	};
 	
 	return GuideArea;
@@ -1193,11 +1282,11 @@ var Mutable = _(function (Base, base) {
 			this.children[i].calcRect();
 		}
 	};
-	prototype.getChild = function (client) {
-		if (this.cRect.contains(client)) {
+	prototype.getChild = function (cPoint) {
+		if (this.cRect.contains(cPoint)) {
 			var length = this.children.length;
 			for (var i = 0; i < length; i++) {
-				var child = this.children[i].getChild(client);
+				var child = this.children[i].getChild(cPoint);
 				if (child) return child;
 			}
 		}
@@ -1315,11 +1404,14 @@ var Container = _(function (Base, base) {
 			element.removeChild(node);
 			if (node.nodeType == 1) {
 				var id = node.id;
-				if (id) this.contents[id] = new Content(node, id);
+				if (id) {
+					this.contents[id] = new Content(node, id);
+				}
 			}
 			node = next;
 		}
 		
+		// DOM
 		this.body    = createDiv('body');
 		this.overlay = createDiv('overlay');
 		this.floats = new Floats(this);
@@ -1337,20 +1429,18 @@ var Container = _(function (Base, base) {
 				return false;
 			}
 		};
-		
 		element.appendChild(this.element);
 		
 		this.mousemove = function (event) {
 			event = event || window.event;
-			var vector = Vector.from(event);
+			var point = Vector.from(event);
 			if (self.hardDrag) {
-				var abs2 = vector.minus(self.dragStart).abs2();
+				var abs2 = point.minus(self.dragStart).abs2();
 				if (abs2 < Draggable.ABS2) return false;
 				self.hardDrag = false;
 			}
-			
-			var diff = vector.minus(self.dragPrev);
-			self.dragPrev = vector;
+			var diff = point.minus(self.point);
+			self.point = point;
 			
 			if (self.firstDrag) {
 				self.dragging.ondragstart();
@@ -1388,10 +1478,10 @@ var Container = _(function (Base, base) {
 		this.dragging = draggable;
 	};
 	prototype.mousedown = function (event) {
-		this.dragStart = this.dragPrev = Vector.from(event);
+		this.point = this.dragStart = Vector.from(event);
+		this.dragDiff  = Vector.ZERO;
 		this.hardDrag  = this.dragging.hardDrag;
 		this.firstDrag = true;
-		this.dragDiff  = Vector.ZERO;
 		
 		this.overlay.style.cursor = this.dragging.cursor;
 		this.addClass(DRAGGING_NAME);
@@ -1407,14 +1497,14 @@ var Container = _(function (Base, base) {
 		base.calcRect.call(this);
 		this.floats.calcRect();
 	};
-	prototype.getChild = function (client) {
-		if (this.cRect.contains(client)) {
-			var child = this.floats.getChild(client);
+	prototype.getChild = function (cPoint) {
+		if (this.cRect.contains(cPoint)) {
+			var child = this.floats.getChild(cPoint);
 			if (child) {
 				if (child instanceof Float) return null;
 				return child;
 			}
-			return this.child.getChild(client);
+			return this.child.getChild(cPoint);
 		}
 		return null;
 	};
@@ -1429,7 +1519,7 @@ var Container = _(function (Base, base) {
 	};
 	
 	prototype.onresize = function () {
-		this.clientSize = Size.from(this.element);
+		this.cSize = Size.from(this.element);
 		if (this.minSize) {
 			this.updateSize();
 		} else {
@@ -1442,7 +1532,7 @@ var Container = _(function (Base, base) {
 		this.updateSize();
 	};
 	prototype.updateSize = function () {
-		this.size = this.clientSize
+		this.size = this.cSize
 			.minus(Container.M2).max(this.minSize);
 	};
 	prototype.layout = function () {
@@ -1512,9 +1602,9 @@ var Floats = _(function (Base, base) {
 			this.children[i].calcRect();
 		}
 	};
-	prototype.getChild = function (client) {
+	prototype.getChild = function (cPoint) {
 		for (var i = this.children.length - 2; i >= 0; i--) {
-			var child = this.children[i].getChild(client);
+			var child = this.children[i].getChild(cPoint);
 			if (child) return child;
 		}
 		return null;
@@ -1593,9 +1683,9 @@ var Float = _(function (Base, base) {
 	
 	prototype.bodyRect = true;
 	
-	prototype.getChild = function (client) {
-		if (this.cRect.contains(client)) {
-			return this.child.getChild(client) || this;
+	prototype.getChild = function (cPoint) {
+		if (this.cRect.contains(cPoint)) {
+			return this.child.getChild(cPoint) || this;
 		}
 		return null;
 	};
@@ -1674,17 +1764,17 @@ var Dock = _(function (Base, base) {
 		this.firsts.calcRect();
 		this.lasts .calcRect();
 	};
-	prototype.getChild = function (client) {
-		if (this.cRect.contains(client)) {
-			return this.child .getChild(client)
-			    || this.firsts.getChild(client)
-			    || this.lasts .getChild(client);
+	prototype.getChild = function (cPoint) {
+		if (this.cRect.contains(cPoint)) {
+			return this.child .getChild(cPoint)
+			    || this.firsts.getChild(cPoint)
+			    || this.lasts .getChild(cPoint);
 		}
 		return null;
 	};
 	
 	prototype.setChild = function (child) {
-		this.child = child; // Dock | Main
+		this.child = child;
 		child.parent = this;
 		this.body.insertBefore(child.element, this.lasts.element);
 	};
@@ -1897,10 +1987,6 @@ var DockPane = _(function (Base, base) {
 		}
 	};
 	
-	// prototype.getDockPane = function () {
-	// 	return this;
-	// };
-	
 	return DockPane;
 })(PaneBase);
 
@@ -1908,8 +1994,6 @@ var Pane = _(function (Base, base) {
 	
 	function Pane(horizontal) {
 		Base.call(this, 'pane', horizontal);
-		
-		// this.sizes = [];
 	}
 	var prototype = inherit(Pane, base);
 	
@@ -1964,8 +2048,8 @@ var Pane = _(function (Base, base) {
 		}
 		if (pauseLayout) return;
 		
-		var length = this.children.length;
-		if (length == 1) {
+		var l = this.children.length;
+		if (l == 1) {
 			var remChild = this.children[0];
 			if (remChild    instanceof Pane &&
 			    this.parent instanceof Pane) {
@@ -1977,19 +2061,22 @@ var Pane = _(function (Base, base) {
 			}
 			return;
 		}
-		if (length) {
-			var i;
-			if (this.sizes[child.index] == this.remSize) {
-				var prop = 1. / length;
-				for (i = 0; i < length; i++) {
-					this.children[i].size = prop;
-				}
-			} else {
-				var rem = 1. - child.size;
-				for (i = 0; i < length; i++) {
-					this.children[i].size /= rem;
-				}
-			}
+		if (l) {
+			var i = child.index;
+			var li = i == 0 ? 0 : i - 1;
+			var ri = i == l ? l - 1 : i;
+			
+			var size = this.sizes[i] + Splitter.SIZE;
+			var ls = this.children[li].size;
+			var rs = this.children[ri].size;
+			var sum = ls + rs;
+			if (sum == 0.) { sum = 1.; ls = rs = .5; }
+			
+			this.remSize += Splitter.SIZE;
+			this.sizes.splice(i, 1);
+			this.sizes[li] += size * ls / sum;
+			this.sizes[ri] += size * rs / sum;
+			this.calcSizes();
 		} else this.parent.removeChild(this, false);
 	};
 	prototype.insertChild = function (child, refChild) {
@@ -2004,7 +2091,8 @@ var Pane = _(function (Base, base) {
 	prototype.calcSizes = function () {
 		var length = this.children.length;
 		for (var i = 0; i < length; i++) {
-			this.children[i].size = this.sizes[i] / this.remSize;
+			this.children[i].size =
+				this.sizes[i] / this.remSize;
 		}
 	};
 	
@@ -2033,10 +2121,6 @@ var Pane = _(function (Base, base) {
 			}
 		}
 	};
-	
-	// prototype.getDockPane = function () {
-	// 	return this.parent.getDockPane();
-	// };
 	
 	prototype.toJSON = function () {
 		var json = base.toJSON.call(this);
@@ -2087,21 +2171,17 @@ var Contents = _(function (Base, base) {
 		if (this.children.length) this.setTabSize();
 	};
 	
-	prototype.calcRect = function (client) {
+	prototype.calcRect = function () {
 		this.cRect = this.getRect();
 	};
-	prototype.getChild = function (client) {
-		if (this.cRect.contains(client)) return this;
+	prototype.getChild = function (cPoint) {
+		if (this.cRect.contains(cPoint)) return this;
 		return null;
 	};
 	
 	prototype.onStripMousedown = function () { };
 	prototype.onStripDrag = function (delta) { }; // called from Main
 	prototype.onStripDrop = function () { };
-	
-	// prototype.minimize = function () {
-	// 	this.parent.getDockPane().minimizeChild(this);
-	// };
 	
 	prototype.fromJSON = function (container, json) {
 		var length = json.children.length;
@@ -2428,7 +2508,7 @@ return (function () {
 	};
 	prototype.openSub = function (content, rect) {
 		if (content.isClosed()) {
-			var s = this.layout.clientSize;
+			var s = this.layout.cSize;
 			var r = rect ? Rect.from(rect) : new Rect;
 			
 			r.width  = r.width  || 300;
