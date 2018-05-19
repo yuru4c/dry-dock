@@ -969,8 +969,7 @@ var Guide = _(function (Base, base) {
 				if (this.paneTarget.index != (def.last ?
 					pane.children.length - 1 : 0)) {
 					
-					this.area.setInsertArea(def, this.rect,
-						this.paneTarget);
+					this.area.setInsertArea(def, this.paneTarget);
 					return;
 				}
 			}
@@ -1194,22 +1193,17 @@ var GuideArea = _(function (Base, base) {
 			size - size / 5 + Container.MARGIN);
 	};
 	
-	prototype.setInsertArea = function (def, rect, target) {
+	prototype.setInsertArea = function (def, target) {
 		var ins = def.calcInsert(target);
-		var tPx = -ins.t.diff + ins.tSize + Splitter.SIZE + 'px';
-		var nPx = -ins.n.diff + 'px';
+		this.set(def, '0', ins.tSize - ins.t.diff);
 		
+		var px = -ins.n.diff + 'px';
 		var s = this.element.style;
-		s.top = s.right = s.bottom = s.left = '0';
 		switch (def) {
-			case ButtonDef.TOP:
-				s.bottom = tPx; s.top = nPx; break;
-			case ButtonDef.RIGHT:
-				s.left = tPx; s.right = nPx; break;
-			case ButtonDef.BOTTOM:
-				s.top = tPx; s.bottom = nPx; break;
-			case ButtonDef.LEFT:
-				s.right = tPx; s.left = nPx; break;
+			case ButtonDef.TOP:    s.top    = px; break;
+			case ButtonDef.RIGHT:  s.right  = px; break;
+			case ButtonDef.BOTTOM: s.bottom = px; break;
+			case ButtonDef.LEFT:   s.left   = px; break;
 		}
 	};
 	
