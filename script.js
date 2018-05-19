@@ -624,6 +624,11 @@ var TabStrip = _(function (Base, base) {
 		}
 	};
 	
+	prototype.minHeight = function (height) {
+		this.element.style.height =
+			height < Tab.HEIGHT ? height + 'px' : '';
+	};
+	
 	return TabStrip;
 })(Draggable);
 
@@ -2334,6 +2339,7 @@ var Sub = _(function (Base, base) {
 	
 	prototype.onresize = function (width, height) {
 		this.setSize(width, height);
+		this.tabstrip.minHeight(height);
 		this.layout(width);
 	};
 	prototype.layout = function (width) {
