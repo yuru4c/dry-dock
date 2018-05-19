@@ -544,6 +544,9 @@ var TabStrip = _(function (Base, base) {
 	}
 	var prototype = inherit(TabStrip, base);
 	
+	TabStrip.HEIGHT = 26; // px const
+	TabStrip.MAIN = TabStrip.HEIGHT + 2; // px const
+	
 	prototype.hardDrag = true;
 	
 	prototype.appendTab = function (tab) {
@@ -626,7 +629,7 @@ var TabStrip = _(function (Base, base) {
 	
 	prototype.minHeight = function (height) {
 		this.element.style.height =
-			height < Tab.HEIGHT ? height + 'px' : '';
+			height < TabStrip.HEIGHT ? height + 'px' : '';
 	};
 	
 	return TabStrip;
@@ -652,9 +655,6 @@ var Tab = _(function (Base, base) {
 	}
 	var prototype = inherit(Tab, base);
 	
-	Tab.HEIGHT = 26; // px const
-	Tab.MAIN = Tab.HEIGHT + 2; // px const
-	
 	prototype.hardDrag = true;
 	
 	prototype.setTitle = function (title) {
@@ -672,7 +672,7 @@ var Tab = _(function (Base, base) {
 		var diff = this.diff;
 		if (diff) {
 			this.diff = diff.plus(delta);
-			if (Math.abs(this.diff.y) >= Tab.HEIGHT) {
+			if (Math.abs(this.diff.y) >= TabStrip.HEIGHT) {
 				return this.contents.detatchChild(
 					this.parent, this.diff).minus(diff);
 			}
@@ -754,14 +754,14 @@ var Edge = _(function (Base, base) {
 	var prototype = inherit(Edge, base);
 	
 	Edge.SIZE = 2;
-	var MIN = Edge.SIZE + Tab.HEIGHT;
+	var MIN = Edge.SIZE + TabStrip.HEIGHT;
 	
 	prototype.ondrag = function (delta) {
 		var dx = delta.x, dy = delta.y;
 		
 		var rect = this.parent.rect;
-		var mw = rect.width  - Tab.HEIGHT;
-		var mh = rect.height - Tab.HEIGHT;
+		var mw = rect.width  - TabStrip.HEIGHT;
+		var mh = rect.height - TabStrip.HEIGHT;
 		
 		switch (this.v) {
 			case EdgeDef.TOP:
@@ -962,15 +962,17 @@ var Guide = _(function (Base, base) {
 			this.area.setMainArea(def, this.rect);
 			return;
 		}
-		if (this.paneTarget) {
+		if (def != ButtonDef.CENTER && this.paneTarget) {
 			var pane = this.paneTarget.parent;
-			if (pane.horizontal == def.horizontal &&
-				this.paneTarget.index != (def.last ?
-					pane.children.length - 1 : 0)) {
+			if (pane.horizontal == def.horizontal) {
 				
-				this.area.setInsertArea(def, this.rect,
-					this.paneTarget);
-				return;
+				if (this.paneTarget.index != (def.last ?
+					pane.children.length - 1 : 0)) {
+					
+					this.area.setInsertArea(def, this.rect,
+						this.paneTarget);
+					return;
+				}
 			}
 		}
 		this.area.setArea(def, this.rect);
@@ -1112,6 +1114,23 @@ var GuideButton = _(function (Base, base) {
 		}
 	};
 	
+	prototype.newPane = function (contents, target, parent) {
+		var ref = parent.children[target.index + 1];
+		parent.removeChild(target, true);
+		
+		var pane = new Pane(this.def.horizontal);
+		pane.size = target.size;
+		contents.size = target.size = .5;
+		
+		if (this.def.last) {
+			pane.appendChild(target);
+			pane.appendChild(contents);
+		} else {
+			pane.appendChild(contents);
+			pane.appendChild(target);
+		}
+		parent.insertChild(pane, ref);
+	};
 	prototype.splitPane = function (contents, target, parent) {
 		var size = parent.sizes[target.index];
 		parent.remSize -= Splitter.SIZE;
@@ -1136,23 +1155,6 @@ var GuideButton = _(function (Base, base) {
 		
 		parent.remSize -= Splitter.SIZE;
 		parent.calcSizes();
-	};
-	prototype.newPane = function (contents, target, parent) {
-		var ref = parent.children[target.index + 1];
-		parent.removeChild(target, true);
-		
-		var pane = new Pane(this.def.horizontal);
-		pane.size = target.size;
-		contents.size = target.size = .5;
-		
-		if (this.def.last) {
-			pane.appendChild(target);
-			pane.appendChild(contents);
-		} else {
-			pane.appendChild(contents);
-			pane.appendChild(target);
-		}
-		parent.insertChild(pane, ref);
 	};
 	
 	return GuideButton;
@@ -2211,7 +2213,7 @@ var Main = _(function (Base, base) {
 	}
 	var prototype = inherit(Main, base);
 	
-	var MIN_SIZE = Size.square(Tab.MAIN);
+	var MIN_SIZE = Size.square(TabStrip.MAIN);
 	
 	Main.fromJSON = function (container, json) {
 		var main = new Main();
@@ -2274,7 +2276,7 @@ var Sub = _(function (Base, base) {
 	
 	function max(delta, rect) {
 		return delta.max(
-			Edge.SIZE - rect.left - rect.width + Tab.HEIGHT,
+			Edge.SIZE - rect.left - rect.width + TabStrip.HEIGHT,
 			Edge.SIZE - rect.top);
 	}
 	
@@ -2295,7 +2297,7 @@ var Sub = _(function (Base, base) {
 	prototype.openFloat = function (container, rect, delta) {
 		var float = new Float(this);
 		delta = max(delta, rect);
-		float.rect = rect.plus(delta).max(Tab.HEIGHT).round();
+		float.rect = rect.plus(delta).max(TabStrip.HEIGHT).round();
 		
 		container.floats.appendChild(float);
 		float.activate();
@@ -2347,7 +2349,7 @@ var Sub = _(function (Base, base) {
 		this.setTabSize();
 	};
 	prototype.setTabSize = function () { // px const
-		this.tabstrip.onresize(this.width, 112, Tab.HEIGHT);
+		this.tabstrip.onresize(this.width, 112, TabStrip.HEIGHT);
 	};
 	
 	prototype.toJSON = function () {
@@ -2469,7 +2471,7 @@ return (function () {
 	DryDock.Content = Content;
 	
 	function center(value) {
-		return value / 2 + Tab.HEIGHT * (Math.random() - .5);
+		return value / 2 + TabStrip.HEIGHT * (Math.random() - .5);
 	}
 	
 	var json = typeof JSON == 'undefined' ? {
