@@ -16,6 +16,11 @@ function createDiv(className) {
 	div.className = NAME_PREFIX + className;
 	return div;
 }
+function toTouch(listener) {
+	return function (event) {
+		return listener.call(this, event.touches[0]);
+	};
+}
 
 
 function _(_) {
@@ -456,18 +461,12 @@ var Draggable = _(function (Base, base) {
 				return false;
 			}
 		}
-		this.element.onmousedown = mousedown;
-		this.element.ontouchstart = Draggable.toTouch(mousedown);
+		this.element.onmousedown  = mousedown;
+		this.element.ontouchstart = toTouch(mousedown);
 	}
 	var prototype = inherit(Draggable, base);
 	
 	Draggable.ABS2 = 6 * 6;
-	
-	Draggable.toTouch = function (listener) {
-		return function (event) {
-			return listener.call(this, event.touches[0]);
-		};
-	};
 	
 	var GRABBING_NAME = NAME_PREFIX + 'grabbing';
 	
@@ -621,7 +620,6 @@ var TabStrip = _(function (Base, base) {
 			}
 		} else this.tabSize = tabSize;
 		
-		if (this.parent.detatchedTab) return;
 		if (rem) {
 			this.setEachSize(0, rem, tabSize + 1);
 		}
@@ -665,8 +663,7 @@ var Tab = _(function (Base, base) {
 	};
 	
 	prototype.ondragstart = function () {
-		this.detatched = false;
-		
+		this.order = true;
 		this.contents = this.tabstrip.parent;
 		this.detatch = this.contents instanceof Sub;
 		if (this.detatch) {
@@ -681,26 +678,26 @@ var Tab = _(function (Base, base) {
 			var diff = this.diff;
 			this.diff = diff.plus(delta);
 			if (Math.abs(this.diff.y) >= TabStrip.HEIGHT) {
-				this.detatched = true;
-				
-				var style = this.element.style;
-				style.width = this.tabstrip.tabSize + 'px';
-				style.left  = this.tabstrip.tabSize * this.i + 'px';
-				
+				this.order = false;
+				this.setLeft(this.tabstrip.tabSize * this.i);
 				if (this.i > this.index) this.i++;
+				
 				return this.contents.detatchChild(
 					this.parent, this.diff, this.i).minus(diff);
 			}
 		}
 		this.x = this.tabstrip.onTabDrag(this, this.x + delta.x);
-		this.element.style.left = this.x + 'px';
+		this.setLeft(this.x);
 	};
 	prototype.ondrop = function () {
 		this.removeGrabbingClass();
-		if (this.detatched) {
-			this.detatched = false;
-			return;
-		}
+		if (this.order) this.unsetLeft();
+	};
+	
+	prototype.setLeft = function (left) {
+		this.element.style.left = left + 'px';
+	};
+	prototype.unsetLeft = function () {
 		this.element.style.left = '';
 	};
 	
@@ -1055,7 +1052,7 @@ var GuideDroppable = _(function (Base, base) {
 		if (parent instanceof Float) parent.layout();
 	};
 	
-	prototype.insertTabs = function (contents, target, index) {
+	prototype.mergeTabs = function (contents, target, index) {
 		var active = contents.active;
 		var refChild = index == -1 ? null :
 			target.children[index];
@@ -1099,7 +1096,7 @@ var GuideStrip = _(function (Base, base) {
 	};
 	
 	prototype.drop = function (contents, target) {
-		this.insertTabs(contents, target, this.index);
+		this.mergeTabs(contents, target, this.index);
 	};
 	
 	return GuideStrip;
@@ -1144,7 +1141,7 @@ var GuideButton = _(function (Base, base) {
 	prototype.drop = function (contents, target) {
 		var parent = target.parent;
 		if (this.def == ButtonDef.CENTER) { // タブ追加
-			this.insertTabs(contents, target, -1);
+			this.mergeTabs(contents, target, -1);
 			return;
 		} 
 		if (target == this.container) { // 外側
@@ -1270,6 +1267,8 @@ var GuideArea = _(function (Base, base) {
 	}
 	var prototype = inherit(GuideArea, base);
 	
+	var heightPx = TabStrip.HEIGHT + 'px';
+	
 	prototype.set = function (def, margin, value) {
 		var px = value + Splitter.SIZE + 'px';
 		var s = this.element.style;
@@ -1316,7 +1315,7 @@ var GuideArea = _(function (Base, base) {
 	};
 	prototype.setStripArea = function () {
 		var s = this.element.style;
-		s.top = TabStrip.HEIGHT + 'px';
+		s.top = heightPx;
 		s.right = s.bottom = s.left = '0';
 	};
 	
@@ -1570,8 +1569,8 @@ var Container = _(function (Base, base) {
 			self.removeClass(DRAGGING_NAME);
 			self.setDragging(null);
 		};
-		this.touchmove = Draggable.toTouch(this.mousemove);
-		this.touchend  = Draggable.toTouch(this.mouseup);
+		this.touchmove = toTouch(this.mousemove);
+		this.touchend  = toTouch(this.mouseup);
 	}
 	var prototype = inherit(Container, base);
 	
@@ -1810,6 +1809,14 @@ var Float = _(function (Base, base) {
 		this.removeActiveClass();
 	};
 	
+	prototype.layout = function () {
+		this.setRect(this.rect);
+		this.child.layout(this.rect.width);
+	};
+	prototype.move = function () {
+		this.setPos(this.rect.top, this.rect.left);
+	};
+	
 	prototype.setSize = function (width, height) {
 		base.setSize.call(this,
 			width  + H2,
@@ -1819,13 +1826,6 @@ var Float = _(function (Base, base) {
 		base.setPos.call(this,
 			top  - HANDLE,
 			left - HANDLE);
-	};
-	prototype.layout = function () {
-		this.setRect(this.rect);
-		this.child.layout(this.rect.width);
-	};
-	prototype.move = function () {
-		this.setPos(this.rect.top, this.rect.left);
 	};
 	
 	prototype.toJSON = function () {
@@ -2452,13 +2452,12 @@ var Sub = _(function (Base, base) {
 		return this.openFloat(container, rect, delta);
 	};
 	prototype.onStripDrop = function () {
-		this.tabstrip.container.guide.ondrop();
-		var tab = this.detatchedTab;
-		if (tab) {
+		if (this.detatchedTab) {
+			this.detatchedTab.unsetLeft();
 			this.detatchedTab = null;
-			tab.ondrop();
-			tab.tabstrip.parent.setTabSize();
+			this.setTabSize();
 		}
+		this.tabstrip.container.guide.ondrop();
 	};
 	
 	prototype.removeChild = function (content) {
@@ -2479,6 +2478,7 @@ var Sub = _(function (Base, base) {
 		this.setTabSize();
 	};
 	prototype.setTabSize = function () { // px const
+		if (this.detatchedTab) return;
 		this.tabstrip.onresize(this.width, 112, TabStrip.HEIGHT);
 	};
 	
