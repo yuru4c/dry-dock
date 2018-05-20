@@ -2484,7 +2484,6 @@ var Sub = _(function (Base, base) {
 	
 	prototype.onresize = function (width, height) {
 		this.setSize(width, height);
-		this.tabstrip.minHeight(height);
 		this.layout(width);
 	};
 	prototype.layout = function (width) {
@@ -2493,6 +2492,15 @@ var Sub = _(function (Base, base) {
 	};
 	prototype.setTabSize = function () { // px const
 		this.tabstrip.onresize(this.width, 112, TabStrip.HEIGHT);
+	};
+	
+	prototype.setSize = function (width, height) {
+		base.setSize.call(this, width, height);
+		this.tabstrip.minHeight(height);
+	};
+	prototype.unsetSize = function () {
+		base.unsetSize.call(this);
+		this.tabstrip.minHeight(TabStrip.HEIGHT);
 	};
 	
 	prototype.toJSON = function () {
