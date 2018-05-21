@@ -379,6 +379,16 @@ var Model = (function () {
 		this.setSize(rect.width, rect.height);
 	};
 	
+	prototype.setWidth = function (width) {
+		this.element.style.width = width + 'px';
+	};
+	prototype.setLeft = function (left) {
+		this.element.style.left = left + 'px';
+	};
+	prototype.unsetLeft = function () {
+		this.element.style.left = '';
+	};
+	
 	prototype.bodyRect = false;
 	prototype.getRect = function () {
 		var element = this.bodyRect ? this.body : this.element;
@@ -626,9 +636,8 @@ var TabStrip = _(function (Base, base) {
 		this.setEachSize(rem, length, tabSize);
 	};
 	prototype.setEachSize = function (index, length, size) {
-		var width = size + 'px';
 		for (var i = index; i < length; i++) {
-			this.tabs[i].element.style.width = width;
+			this.tabs[i].setWidth(size);
 		}
 	};
 	
@@ -692,13 +701,6 @@ var Tab = _(function (Base, base) {
 	prototype.ondrop = function () {
 		this.removeGrabbingClass();
 		if (this.order) this.unsetLeft();
-	};
-	
-	prototype.setLeft = function (left) {
-		this.element.style.left = left + 'px';
-	};
-	prototype.unsetLeft = function () {
-		this.element.style.left = '';
 	};
 	
 	return Tab;
@@ -769,8 +771,7 @@ var Edge = _(function (Base, base) {
 	}
 	var prototype = inherit(Edge, base);
 	
-	Edge.SIZE = 2;
-	var MIN = Edge.SIZE + TabStrip.HEIGHT;
+	Edge.SIZE = 2; // px const
 	
 	prototype.ondrag = function (delta) {
 		var dx = delta.x, dy = delta.y;
@@ -801,7 +802,7 @@ var Edge = _(function (Base, base) {
 			break;
 			
 			case EdgeDef.RIGHT:
-			var r = MIN - rect.left - rect.width;
+			var r = Float.MIN_R - rect.left - rect.width;
 			if (dx < -mw) dx = -mw;
 			if (dx <   r) dx =   r;
 			rect.width += dx;
@@ -850,23 +851,28 @@ var GuideBase = _(function (Base, base) {
 		return null;
 	};
 	prototype.setDroppable = function (droppable) {
-		if (droppable == this.droppable) return;
-		if (this.droppable) this.droppable.onleave();
-		this.droppable = droppable;
-		if (droppable) {
-			droppable.onenter();
-			this.enter(droppable);
-			this.area.show();
-		} else {
-			this.area.hide();
+		if (droppable != this.droppable) {
+			if (this.droppable) this.droppable.onleave();
+			this.droppable = droppable;
+			if (droppable) {
+				droppable.onenter();
+				this.enter(droppable);
+				this.area.show();
+			} else {
+				this.area.hide();
+			}
 		}
 	};
 	
+	prototype.onleave = function () {
+		this.setDroppable(null);
+		this.hide();
+	};
 	prototype.drop = function (contents, target) {
-		if (target) this.droppable.ondrop(contents, target);
-		this.droppable.onleave();
-		this.droppable = null;
-		this.area.hide();
+		if (this.droppable) {
+			this.droppable.ondrop(contents, target);
+		}
+		this.onleave();
 	};
 	
 	return GuideBase;
@@ -903,37 +909,43 @@ var GuideParent = _(function (Base, base) {
 		
 		var target = this.container.getChild(point);
 		if (target != this.target) {
+			if (this.target) {
+				this.child.setDroppable(null);
+			}
 			this.target = target;
-			if (target) this.child.onenter(target);
-			else this.child.hide();
+			if (target) {
+				this.child.onenter(target);
+			} else {
+				this.child.onleave();
+			}
 		}
 		var relative;
-		var hit = false;
+		var top = null;
 		if (target) {
 			relative = point.of(target.cRect);
-			hit = this.child.hitTest(relative);
+			top = this.child.getButton(relative);
 		}
 		
-		var button = hit ? null :
+		var button = top ? null :
 			this.getButton(point.of(this.container.cRect));
 		this.setDroppable(button);
 		
 		if (target) {
-			this.child.ondrag(relative, hit || button);
+			this.child.ondrag(relative, top, button);
 		}
 	};
+	
 	prototype.enter = function (button) {
-		this.area.setOuterArea(button.def, this.container.cRect);
+		this.area.setOuterArea(
+			button.def, this.container.cRect);
 	};
+	
 	prototype.ondrop = function () {
-		if (this.droppable) {
-			this.drop(this.contents, this.container);
-		} else {
-			this.child.ondrop(this.contents, this.target);
+		if (this.target) {
+			this.child.drop(this.contents, this.target);
+			this.target = null;
 		}
-		this.child.hide();
-		this.hide();
-		this.target = null;
+		this.drop(this.contents, this.container);
 	};
 	
 	return GuideParent;
@@ -958,7 +970,6 @@ var Guide = _(function (Base, base) {
 		
 		var parent = target.parent;
 		this.isPane = parent instanceof Pane;
-		this.guidestrip.enter(target);
 		
 		var c = ButtonPos.center(this.rect);
 		this.top   .setPos(c.y - GuideButton.SM, c.x);
@@ -977,9 +988,9 @@ var Guide = _(function (Base, base) {
 		
 		this.show();
 	};
-	prototype.ondrag = function (vector, hit) {
-		if (hit || this.main) {
-			this.setDroppable(this.button);
+	prototype.ondrag = function (vector, button, hit) {
+		if (button || hit || this.main) {
+			this.setDroppable(button);
 			return;
 		}
 		if (vector.y < TabStrip.HEIGHT) {
@@ -989,9 +1000,11 @@ var Guide = _(function (Base, base) {
 		}
 		this.setDroppable(null);
 	};
+	
 	prototype.enter = function (droppable) {
 		if (droppable == this.guidestrip) {
 			this.area.setStripArea();
+			droppable.enter(this.target);
 			return;
 		}
 		var def = droppable.def;
@@ -1013,20 +1026,12 @@ var Guide = _(function (Base, base) {
 		}
 		this.area.setArea(def, this.rect);
 	};
-	prototype.ondrop = function (contents, target) {
-		if (this.droppable) this.drop(contents, target);
-	};
 	
 	prototype.getButton = function (vector) {
 		var button = base.getButton.call(this, vector);
 		if (button) return button;
 		if (this.center.hitTest(vector)) return this.center;
 		return null;
-	};
-	prototype.hitTest = function (vector) {
-		var button = this.getButton(vector);
-		this.button = button;
-		return button ? true : false;
 	};
 	
 	return Guide;
@@ -1078,6 +1083,7 @@ var GuideStrip = _(function (Base, base) {
 	var prototype = inherit(GuideStrip, base);
 	
 	prototype.enter = function (target) {
+		this.index = -1;
 		this.tabSize = target.tabstrip.tabSize;
 		this.length  = target.children.length;
 	};
@@ -1091,8 +1097,10 @@ var GuideStrip = _(function (Base, base) {
 	prototype.ondrag = function (vector) {
 		var index = Math.floor(vector.x / this.tabSize);
 		if (index > this.length) index = this.length;
-		this.index = index;
-		this.area.setTabArea(index, this.tabSize);
+		if (index != this.index) {
+			this.index = index;
+			this.area.setTabArea(index, this.tabSize);
+		}
 	};
 	
 	prototype.drop = function (contents, target) {
@@ -1309,9 +1317,8 @@ var GuideArea = _(function (Base, base) {
 	};
 	
 	prototype.setTabArea = function (index, width) {
-		var s = this.element.style;
-		s.left  = width * index + 'px';
-		s.width = width + 'px';
+		this.setLeft(width * index);
+		this.setWidth(width);
 	};
 	prototype.setStripArea = function () {
 		var s = this.element.style;
@@ -1768,6 +1775,8 @@ var Float = _(function (Base, base) {
 	var HANDLE = 6; // px const
 	var H2 = HANDLE * 2;
 	
+	Float.MIN_R = Edge.SIZE + TabStrip.HEIGHT;
+	
 	Float.fromJSON = function (container, json) {
 		var sub = Sub.fromJSON(container, json.child);
 		var float = new Float(sub);
@@ -1813,8 +1822,9 @@ var Float = _(function (Base, base) {
 		this.setRect(this.rect);
 		this.child.layout(this.rect.width);
 	};
-	prototype.move = function () {
-		this.setPos(this.rect.top, this.rect.left);
+	prototype.moveTo = function (rect) {
+		this.rect = rect;
+		this.setPos(rect.top, rect.left);
 	};
 	
 	prototype.setSize = function (width, height) {
@@ -2396,8 +2406,8 @@ var Sub = _(function (Base, base) {
 	
 	function max(delta, rect) {
 		return delta.max(
-			Edge.SIZE - rect.left - rect.width + TabStrip.HEIGHT,
-			Edge.SIZE - rect.top);
+			Float.MIN_R - rect.left - rect.width,
+			Edge.SIZE   - rect.top);
 	}
 	
 	prototype.detatchChild = function (content, diff, i) {
@@ -2422,7 +2432,8 @@ var Sub = _(function (Base, base) {
 	prototype.openFloat = function (container, rect, delta) {
 		var float = new Float(this);
 		delta = max(delta, rect);
-		float.rect = rect.plus(delta).max(TabStrip.HEIGHT).round();
+		float.rect = rect.plus(delta)
+			.max(TabStrip.HEIGHT).round();
 		
 		container.floats.appendChild(float);
 		float.activate();
@@ -2438,8 +2449,7 @@ var Sub = _(function (Base, base) {
 		if (this.parent instanceof Float) {
 			var r = this.parent.rect;
 			delta = max(delta, r);
-			this.parent.rect = r.plus(delta);
-			this.parent.move();
+			this.parent.moveTo(r.plus(delta));
 			
 			container.guide.ondrag();
 			return delta;
@@ -2599,7 +2609,8 @@ return (function () {
 	DryDock.Content = Content;
 	
 	function center(value) {
-		return value / 2 + TabStrip.HEIGHT * (Math.random() - .5);
+		return value / 2 +
+			TabStrip.HEIGHT * (Math.random() - .5);
 	}
 	
 	prototype.open = function (element) {

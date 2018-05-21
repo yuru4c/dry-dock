@@ -244,6 +244,7 @@
 
 .dd-guidebutton {
 	background-color: #161618;
+	color: #eeeeee;
 	opacity: .75;
 }
 .dd-guidebutton.dd-hover {
@@ -252,7 +253,7 @@
 }
 .dd-guidearea {
 	background-color: #3399ff;
-	opacity: .25;
+	opacity: .33;
 }
 
 .dd-fbody {
@@ -274,11 +275,11 @@
 	border-bottom-color: #007acc;
 }
 .dd-main .dd-tab:hover {
-	background-color: #3e3e40;
+	background-color: #3e3e42;
 }
 .dd-main .dd-tab.dd-active {
-	color: #ffffff;
 	background-color: #007acc;
+	color: #ffffff;
 }
 
 .dd-main .dd-close {
@@ -286,12 +287,12 @@
 }
 .dd-main .dd-close:hover,
 .dd-main .dd-close.dd-cancel {
-	color: #ffffff;
 	background-color: #1c97ea;
+	color: #ffffff;
 }
 .dd-main .dd-close.dd-active {
-	color: #ffffff;
 	background-color: #0e6198;
+	color: #ffffff;
 }
 
 .dd-floating .dd-main .dd-tabstrip {
@@ -299,17 +300,20 @@
 }
 .dd-floating .dd-main .dd-tab.dd-active {
 	background-color: #3f3f46;
-	color: #d0d0d0;
+	color: #eeeeee;
 }
 
 .dd-sub .dd-tabstrip {
 	background-color: #333334;
 }
 .dd-sub .dd-tab:hover {
-	background-color: #3e3e40;
+	background-color: #3f3f41;
 }
 .dd-sub .dd-tab.dd-active {
 	background-color: #28282b;
+}
+.dd-sub .dd-tab.dd-active .dd-title {
+	color: #eeeeee;
 }
 
 .dd-sub .dd-close:hover,
@@ -317,8 +321,8 @@
 	background-color: #393939;
 }
 .dd-sub .dd-close.dd-active {
-	color: #ffffff;
 	background-color: #1f1f20;
+	color: #ffffff;
 }
 
 .dd-content {
