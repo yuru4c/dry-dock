@@ -591,24 +591,22 @@ var TabStrip = _(function (Base, base) {
 		var move = toIndex - tab.index;
 		var minus = move < 0;
 		
-		var to = this.tabs[toIndex];
+		var toElement = this.tabs[toIndex].element;
+		this.parent.moveChild(tab.index, toIndex);
+		
 		this.tabs.splice(tab.index, 1);
 		this.tabs.splice(toIndex, 0, tab);
-		
-		this.parent.moveChild(tab.index, toIndex);
 		for (var i = minus ? toIndex : tab.index; i < l; i++) {
 			this.tabs[i].index = i;
 		}
 		
 		this.body.insertBefore(tab.element,
-			minus ? to.element : to.element.nextSibling);
-		
+			minus ? toElement : toElement.nextSibling);
 		return x - this.tabSize * move;
 	};
 	
-	prototype.onmousedown = function () {
-		base.onmousedown.call(this);
-		this.parent.onStripMousedown();
+	prototype.ondragstart = function () {
+		this.parent.onStripDragStart();
 	};
 	prototype.ondrag = function (delta) {
 		return this.parent.onStripDrag(delta);
@@ -672,7 +670,6 @@ var Tab = _(function (Base, base) {
 	};
 	
 	prototype.ondragstart = function () {
-		this.order = true;
 		this.contents = this.tabstrip.parent;
 		this.detatch = this.contents instanceof Sub;
 		if (this.detatch) {
@@ -687,7 +684,7 @@ var Tab = _(function (Base, base) {
 			var diff = this.diff;
 			this.diff = diff.plus(delta);
 			if (Math.abs(this.diff.y) >= TabStrip.HEIGHT) {
-				this.order = false;
+				this.removeGrabbingClass();
 				this.setLeft(this.tabstrip.tabSize * this.i);
 				if (this.i > this.index) this.i++;
 				
@@ -700,7 +697,7 @@ var Tab = _(function (Base, base) {
 	};
 	prototype.ondrop = function () {
 		this.removeGrabbingClass();
-		if (this.order) this.unsetLeft();
+		this.unsetLeft();
 	};
 	
 	return Tab;
@@ -888,7 +885,7 @@ var GuideParent = _(function (Base, base) {
 	}
 	var prototype = inherit(GuideParent, base);
 	
-	prototype.onmousedown = function (contents) {
+	prototype.ondragstart = function (contents) {
 		this.contents = contents;
 		this.firstDrag = true;
 	};
@@ -1058,15 +1055,12 @@ var GuideDroppable = _(function (Base, base) {
 	};
 	
 	prototype.mergeTabs = function (contents, target, index) {
-		var active = contents.active;
-		var refChild = index == -1 ? null :
-			target.children[index];
-		
+		var refChild = target.children[index];
 		var length = contents.children.length;
 		for (var i = 0; i < length; i++) {
 			target.insertChild(contents.children[i], refChild);
 		}
-		target.activateChild(active);
+		target.activateChild(contents.active);
 	};
 	
 	return GuideDroppable;
@@ -1573,6 +1567,8 @@ var Container = _(function (Base, base) {
 			this.onmouseup   = null;
 			this.ontouchmove = null;
 			this.ontouchend  = null;
+			
+			self.dragging.ondrop();
 			self.removeClass(DRAGGING_NAME);
 			self.setDragging(null);
 		};
@@ -1587,10 +1583,11 @@ var Container = _(function (Base, base) {
 	
 	prototype.setDragging = function (draggable) {
 		if (this.dragging) {
-			this.dragging.ondrop();
 			this.dragging.container = null;
 		}
-		if (draggable) draggable.container = this;
+		if (draggable) {
+			draggable.container = this;
+		}
 		this.dragging = draggable;
 	};
 	prototype.mousedown = function (event) {
@@ -2316,7 +2313,7 @@ var Contents = _(function (Base, base) {
 		return null;
 	};
 	
-	prototype.onStripMousedown = function () { };
+	prototype.onStripDragStart = function () { };
 	prototype.onStripDrag = function (delta) { }; // called from Main
 	prototype.onStripDrop = function () { };
 	
@@ -2411,7 +2408,8 @@ var Sub = _(function (Base, base) {
 	}
 	
 	prototype.detatchChild = function (content, diff, i) {
-		var container = content.tab.container;
+		var tab = content.tab;
+		var container = tab.container;
 		var rect = this.getRectOf(container);
 		
 		var length = this.children.length;
@@ -2420,12 +2418,12 @@ var Sub = _(function (Base, base) {
 		this.removeChild(content);
 		
 		var sub = new Sub();
-		sub.detatchedTab = content.tab;
+		sub.detatched = tab;
 		sub.appendChild(content, true);
 		sub.activateChild(content);
 		
 		container.setDragging(sub.tabstrip);
-		sub.onStripMousedown();
+		sub.onStripDragStart();
 		return sub.openFloat(container, rect, diff);
 	};
 	
@@ -2440,8 +2438,9 @@ var Sub = _(function (Base, base) {
 		return delta;
 	};
 	
-	prototype.onStripMousedown = function () {
-		this.tabstrip.container.guide.onmousedown(this);
+	prototype.onStripDragStart = function () {
+		this.tabstrip.addGrabbingClass();
+		this.tabstrip.container.guide.ondragstart(this);
 	};
 	prototype.onStripDrag = function (delta) {
 		var container = this.tabstrip.container;
@@ -2462,11 +2461,12 @@ var Sub = _(function (Base, base) {
 		return this.openFloat(container, rect, delta);
 	};
 	prototype.onStripDrop = function () {
-		if (this.detatchedTab) {
-			this.detatchedTab.unsetLeft();
-			this.detatchedTab = null;
+		if (this.detatched) {
+			this.detatched.unsetLeft();
+			this.detatched = null;
 			this.setTabSize();
 		}
+		this.tabstrip.removeGrabbingClass();
 		this.tabstrip.container.guide.ondrop();
 	};
 	
@@ -2488,7 +2488,7 @@ var Sub = _(function (Base, base) {
 		this.setTabSize();
 	};
 	prototype.setTabSize = function () { // px const
-		if (this.detatchedTab) return;
+		if (this.detatched) return;
 		this.tabstrip.onresize(this.width, 112, TabStrip.HEIGHT);
 	};
 	
