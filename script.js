@@ -297,15 +297,12 @@ var Division = (function () {
 	}
 	var prototype = Division.prototype;
 	
-	function Round(index, value, decimal) {
+	function Round(index, value) {
 		this.index = index;
 		this.value = value;
-		this.decimal = decimal;
 	}
 	function compare(a, b) {
-		return b.decimal - a.decimal
-		    || a.value - b.value
-		    || b.index - a.index;
+		return b.value - a.value || b.index - a.index;
 	}
 	
 	prototype.set = function (i, prop) {
@@ -314,7 +311,7 @@ var Division = (function () {
 		
 		this.sum      += floor;
 		this.values[i] = floor;
-		this.rounds[i] = new Round(i, prop, value - floor);
+		this.rounds[i] = new Round(i, value - floor);
 	};
 	prototype.get = function () {
 		this.rounds.sort(compare);
@@ -486,6 +483,11 @@ var Draggable = _(function (Base, base) {
 	prototype.hardDrag = false;
 	prototype.cursor = '';
 	
+	prototype.setCursor = function (cursor) {
+		this.cursor = cursor;
+		this.element.style.cursor = cursor;
+	};
+	
 	prototype.addGrabbingClass = function () {
 		this.addClass(GRABBING_NAME);
 	};
@@ -509,9 +511,8 @@ var Splitter = _(function (Base, base) {
 		Base.call(this, 'splitter', pane);
 		
 		this.index = index;
-		this.cursor = pane.horizontal ?
-			'ew-resize' : 'ns-resize';
-		this.element.style.cursor = this.cursor;
+		this.setCursor(pane.horizontal ?
+			'ew-resize' : 'ns-resize');
 	}
 	var prototype = inherit(Splitter, base);
 	
@@ -677,30 +678,44 @@ var Tab = _(function (Base, base) {
 		this.textNode.data = title;
 	};
 	
+	prototype.detach = function (container) {
+		var rect = this.contents.getRectOf(container);
+		var sub = this.contents.detachChild(
+			this.parent, this.i + (this.i > this.index));
+		sub.detached = this;
+		
+		container.setDragging(sub.tabstrip);
+		sub.onStripDragStart();
+		return sub.openFloat(container, rect, this.diff);
+	};
+	
 	prototype.ondragstart = function () {
 		this.contents = this.tabstrip.parent;
-		this.detatch = this.contents instanceof Sub;
-		if (this.detatch) {
+		this.detachable = this.contents instanceof Sub;
+		if (this.detachable) {
 			this.diff = Vector.ZERO;
 			this.i = this.index;
+			this.min = -this.tabstrip.tabSize;
+			this.max = this.contents.width +
+				this.min * (this.tabstrip.tabs.length - 1);
 		}
 		this.x = 0;
 		this.addGrabbingClass();
 	};
 	prototype.ondrag = function (delta) {
-		if (this.detatch) {
+		var x = this.x + delta.x;
+		if (this.detachable) {
 			var diff = this.diff;
 			this.diff = diff.plus(delta);
-			if (Math.abs(this.diff.y) >= TabStrip.HEIGHT) {
+			if (x < this.min || this.max <= x ||
+				Math.abs(this.diff.y) >= TabStrip.HEIGHT) {
+				
 				this.removeGrabbingClass();
 				this.setLeft(this.tabstrip.tabSize * this.i);
-				if (this.i > this.index) this.i++;
-				
-				return this.contents.detatchChild(
-					this.parent, this.diff, this.i).minus(diff);
+				return this.detach(this.container).minus(diff);
 			}
 		}
-		this.x = this.tabstrip.onTabDrag(this, this.x + delta.x);
+		this.x = this.tabstrip.onTabDrag(this, x);
 		this.setLeft(this.x);
 	};
 	prototype.ondrop = function () {
@@ -717,7 +732,7 @@ var Close = _(function (Base, base) {
 		Base.call(this, 'close', tab);
 		
 		this.content = content;
-		// DOM
+		
 		this.body.appendChild($.createTextNode('×'));
 	}
 	var prototype = inherit(Close, base);
@@ -726,18 +741,14 @@ var Close = _(function (Base, base) {
 	
 	prototype.tagName = 'a';
 	
-	prototype.test = function () {
-		return this.cRect.contains(this.container.point);
-	};
-	
 	prototype.onmousedown = function () {
 		this.cRect = this.getRect();
 		this.hovering = true;
 		this.addActiveClass();
 		blur();
 	};
-	prototype.ondrag = function () {
-		var hovering = this.test();
+	prototype.ondrag = function (delta) {
+		var hovering = this.cRect.contains(this.container.point);
 		if (hovering != this.hovering) {
 			if (hovering) {
 				this.addActiveClass();
@@ -768,11 +779,10 @@ var Edge = _(function (Base, base) {
 		
 		this.v = v;
 		this.h = h;
-		this.cursor = cursor;
 		
 		this.addClass(v.className);
 		this.addClass(h.className);
-		this.element.style.cursor = cursor;
+		this.setCursor(cursor);
 	}
 	var prototype = inherit(Edge, base);
 	
@@ -830,17 +840,13 @@ var GuideBase = _(function (Base, base) {
 		this.container = container;
 		
 		this.area = new GuideArea(this);
-		
 		this.top    = new GuideButton(this, ButtonDef.TOP);
 		this.right  = new GuideButton(this, ButtonDef.RIGHT);
 		this.bottom = new GuideButton(this, ButtonDef.BOTTOM);
 		this.left   = new GuideButton(this, ButtonDef.LEFT);
 		
-		// DOM
 		this.hide();
-		
 		this.body.appendChild(this.area.element);
-		
 		this.body.appendChild(this.top   .element);
 		this.body.appendChild(this.right .element);
 		this.body.appendChild(this.bottom.element);
@@ -1277,7 +1283,7 @@ var GuideArea = _(function (Base, base) {
 	}
 	var prototype = inherit(GuideArea, base);
 	
-	var heightPx = TabStrip.HEIGHT + 'px';
+	var HEIGHT_PX = TabStrip.HEIGHT + 'px';
 	
 	prototype.set = function (def, margin, value) {
 		var px = value + Splitter.SIZE + 'px';
@@ -1324,7 +1330,7 @@ var GuideArea = _(function (Base, base) {
 	};
 	prototype.setStripArea = function () {
 		var s = this.element.style;
-		s.top = heightPx;
+		s.top = HEIGHT_PX;
 		s.right = s.bottom = s.left = '0';
 	};
 	
@@ -1467,6 +1473,7 @@ var Mutable = _(function (Base, base) {
 		var child = this.children[index];
 		this.children.splice(index, 1);
 		this.children.splice(to, 0, child);
+		
 		var length = this.children.length;
 		for (var i = Math.min(index, to); i < length; i++) {
 			this.children[i].index = i;
@@ -2142,11 +2149,13 @@ var Pane = _(function (Base, base) {
 	};
 	
 	prototype.onSplitterDragStart = function (splitter) {
-		if (this.remSize == 0) return;
+		this.ignore = this.remSize == 0;
+		if (this.ignore) return;
+		
 		this.calcSizes();
 	};
 	prototype.onSplitterDrag = function (i, delta) {
-		if (this.remSize == 0) return;
+		if (this.ignore) return;
 		var n = i + 1;
 		
 		var cSize = this.sizes[i];
@@ -2326,7 +2335,7 @@ var Contents = _(function (Base, base) {
 	};
 	
 	prototype.onStripDragStart = function () { };
-	prototype.onStripDrag = function (delta) { }; // called from Main
+	prototype.onStripDrag = function (delta) { };
 	prototype.onStripDrop = function () { };
 	
 	prototype.fromJSON = function (container, json) {
@@ -2393,7 +2402,6 @@ var Main = _(function (Base, base) {
 		if (active == children.length) {
 			active = children.length - 1;
 		}
-		
 		return {children: children, active: active, type: 'main'};
 	};
 	
@@ -2419,24 +2427,16 @@ var Sub = _(function (Base, base) {
 			Edge.SIZE   - rect.top);
 	}
 	
-	prototype.detatchChild = function (content, diff, i) {
-		var tab = content.tab;
-		var container = tab.container;
-		var rect = this.getRectOf(container);
-		
+	prototype.detachChild = function (content, active) {
 		var length = this.children.length;
 		this.activateChild(this.children[
-			i < length ? i : length - 1]);
+			active < length ? active : length - 1]);
 		this.removeChild(content);
 		
 		var sub = new Sub();
-		sub.detatched = tab;
 		sub.appendChild(content, true);
 		sub.activateChild(content);
-		
-		container.setDragging(sub.tabstrip);
-		sub.onStripDragStart();
-		return sub.openFloat(container, rect, diff);
+		return sub;
 	};
 	
 	prototype.openFloat = function (container, rect, delta) {
@@ -2473,9 +2473,9 @@ var Sub = _(function (Base, base) {
 		return this.openFloat(container, rect, delta);
 	};
 	prototype.onStripDrop = function () {
-		if (this.detatched) {
-			this.detatched.unsetLeft();
-			this.detatched = null;
+		if (this.detached) {
+			this.detached.ondrop();
+			this.detached = null;
 			this.setTabSize();
 		}
 		this.tabstrip.removeGrabbingClass();
@@ -2500,7 +2500,7 @@ var Sub = _(function (Base, base) {
 		this.setTabSize();
 	};
 	prototype.setTabSize = function () { // px const
-		if (this.detatched) return;
+		if (this.detached) return;
 		this.tabstrip.onresize(this.width, 112, TabStrip.HEIGHT);
 	};
 	
