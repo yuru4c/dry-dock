@@ -681,7 +681,7 @@ var Tab = _(function (Base, base) {
 	
 	prototype.ondragstart = function () {
 		this.contents = this.tabstrip.parent;
-		this.detachable = this.contents instanceof Sub;
+		this.detachable = this.parent.id; // this.contents instanceof Sub;
 		if (this.detachable) {
 			this.diff = Vector.ZERO;
 			this.i = this.index();
@@ -987,12 +987,12 @@ var Guide = _(function (Base, base) {
 		this.right .setDisable(float);
 		this.bottom.setDisable(float);
 		this.left  .setDisable(float);
-		this.center.setDisable(this.main);
+		// this.center.setDisable(this.main);
 		
 		this.show();
 	};
 	prototype.ondrag = function (vector, button, hit) {
-		if (button || hit || this.main) {
+		if (button || hit/* || this.main */) {
 			this.setDroppable(button);
 			return;
 		}
@@ -2322,6 +2322,18 @@ var Contents = _(function (Base, base) {
 		return null;
 	};
 	
+	prototype.detachChild = function (content, active) {
+		var length = this.children.length;
+		this.activateChild(this.children[
+			active < length ? active : length - 1]);
+		this.removeChild(content);
+		
+		var sub = new Sub();
+		sub.appendChild(content, true);
+		sub.activateChild(content);
+		return sub;
+	};
+	
 	prototype.onStripDragStart = function () { };
 	prototype.onStripDrag = function (delta) { };
 	prototype.onStripDrop = function () { };
@@ -2414,18 +2426,6 @@ var Sub = _(function (Base, base) {
 			Float.MIN_R - rect.right(),
 			Edge.SIZE   - rect.top);
 	}
-	
-	prototype.detachChild = function (content, active) {
-		var length = this.children.length;
-		this.activateChild(this.children[
-			active < length ? active : length - 1]);
-		this.removeChild(content);
-		
-		var sub = new Sub();
-		sub.appendChild(content, true);
-		sub.activateChild(content);
-		return sub;
-	};
 	
 	prototype.openFloat = function (container, rect, delta) {
 		var float = new Float(this);
