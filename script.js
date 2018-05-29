@@ -535,17 +535,14 @@ var Splitter = _(function (Base, base) {
 		this.parent.onSplitterDragStart(this);
 	};
 	prototype.ondrag = function (delta) {
-		var d = this.parent.horizontal ? delta.x : delta.y;
-		if (this.parent.last) d = -d;
+		var d = this.parent.onSplitterDrag(
+			this.index,
+			this.parent.horizontal ? delta.x : delta.y);
 		
-		var e = this.parent.onSplitterDrag(this.index, d);
-		
-		if (this.parent.last) e = -e;
-		if (e) this.container.layout();
-		
+		if (d) this.container.layout();
 		return this.parent.horizontal
-			? new Vector(e, delta.y)
-			: new Vector(delta.x, e);
+			? new Vector(d, delta.y)
+			: new Vector(delta.x, d);
 	};
 	prototype.ondrop = function () {
 		this.removeGrabbingClass();
@@ -701,11 +698,11 @@ var Tab = _(function (Base, base) {
 		this.addGrabbingClass();
 	};
 	prototype.ondrag = function (delta) {
-		var x = this.x + delta.x;
+		this.x = this.tabstrip.onTabDrag(this, this.x + delta.x);
 		if (this.detachable) {
 			var diff = this.diff;
 			this.diff = diff.plus(delta);
-			if (x < this.min || this.max <= x ||
+			if (this.x < this.min || this.max <= this.x ||
 				Math.abs(this.diff.y) >= TabStrip.HEIGHT) {
 				
 				this.removeGrabbingClass();
@@ -713,7 +710,6 @@ var Tab = _(function (Base, base) {
 				return this.detach(this.container).minus(diff);
 			}
 		}
-		this.x = this.tabstrip.onTabDrag(this, x);
 		this.setLeft(this.x);
 	};
 	prototype.ondrop = function () {
@@ -1442,7 +1438,9 @@ var Mutable = _(function (Base, base) {
 				var index = child.index;
 				if (index == length) index = length - 1;
 				this.activateChild(this.children[index]);
-			} else this.active = null;
+			} else {
+				this.active = null;
+			}
 		}
 	};
 	prototype.replaceChild = function (child, oldChild) {
@@ -2033,8 +2031,9 @@ var DockPane = _(function (Base, base) {
 	};
 	prototype.onSplitterDrag = function (i, delta) {
 		var child = this.children[i];
-		if (delta < -child.size) delta = -child.size;
+		if (this.last) delta = -delta;
 		
+		if (delta < -child.size) delta = -child.size;
 		if (this.draggingInner) {
 			if (delta < -this.size) delta = this.size;
 			var rem = this.maxSize - this.size;
@@ -2049,8 +2048,7 @@ var DockPane = _(function (Base, base) {
 			child.size += delta;
 			next .size -= delta;
 		}
-		
-		return delta;
+		return this.last ? -delta : delta;
 	};
 	
 	prototype.merge = function (dockPane) {
@@ -2213,7 +2211,9 @@ var Pane = _(function (Base, base) {
 			this.sizes[li] += size * ls / sum;
 			this.sizes[ri] += size * rs / sum;
 			this.calcSizes();
-		} else this.parent.removeChild(this, false);
+		} else {
+			this.parent.removeChild(this, false);
+		}
 	};
 	prototype.insertChild = function (child, refChild) {
 		if (refChild == null) {
@@ -2631,7 +2631,7 @@ return (function () {
 	DryDock.Sub = Sub;
 	DryDock.Content = Content;
 	
-	function center(value) {
+	function h(value) {
 		return value / 2 +
 			TabStrip.HEIGHT * (Math.random() - .5);
 	}
@@ -2678,13 +2678,13 @@ return (function () {
 	};
 	prototype.openSub = function (content, rect) {
 		if (content.isClosed()) {
-			var s = this.layout.cSize;
 			var r = rect ? Rect.from(rect) : new Rect;
+			var s = this.layout.cSize;
 			
-			r.width  = r.width  || 300;
-			r.height = r.height || 200;
-			r.top  = r.top  || center(s.height - r.height);
-			r.left = r.left || center(s.width  - r.width );
+			if (!r.width ) r.width  = 300;
+			if (!r.height) r.height = 200;
+			if (r.top  == null) r.top  = h(s.height - r.height);
+			if (r.left == null) r.left = h(s.width  - r.width);
 			
 			var sub = new Sub();
 			sub.appendChild(content, true);

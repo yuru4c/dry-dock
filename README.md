@@ -1,11 +1,10 @@
 # DryDock
 
-**この `README.md` は書きかけです。**
-
 ## 概要
-ウィンドウドッキングの軽量な実装です。
+ドッキングウィンドウの JavaScript と CSS による実装です。  
+たったの 3000 行で書かれており、機能は最低限で軽量です。
 
-## 使い方
+## 入門
 初期レイアウトを作成する準備をします。
 ```html
 <head>
@@ -31,9 +30,9 @@
 </body>
 ```
 
-ドキュメントを開き初期レイアウトを作成します。  
-完成したら、コンソール等から `dd.serialize()` を実行してください。  
-得られた文字列によってレイアウトを復元できます。
+HTML を開きレイアウトを作成します。  
+完成したら、コンソールなどから `dd.serialize()` を実行してください。  
+得られた文字列によって復元できます。
 ```javascript
 var dock = document.getElementById('dock');
 var dd = new DryDock(dock);
@@ -41,9 +40,34 @@ var dd = new DryDock(dock);
 dd.restore('{}'); // dd.serialize() の戻り値を渡す
 ```
 
----
+## 使い方
+`DryDock` コンストラクタに要素を渡すと、その元で初期化します。  
+レイアウトは初期化されないため、復元しない場合は `init` を呼び出します。
+```javascript
+var dd = new DryDock(element);
+dd.init();
+```
 
-メインタブは指定の要素で開くことができます。
+子要素は取り込まれ、id をキーとして `contents` に格納されます。  
+これらは以下のようにして開くことができます。
+```javascript
+var content = dd.contents['id'];
+
+dd.openMain(content);
+// または
+dd.openSub(content);
+```
+
+`openSub` の第二引数には位置と大きさを指定できます。
+```javascript
+dd.openSub(content, {
+	top: 2, left: 2,
+	width: 300, height: 200
+});
+```
+
+メインタブは指定の要素で開くことができます。  
+こうして開かれたタブはシリアライズされません。
 ```javascript
 var content = dd.open(element);
 ```
@@ -59,7 +83,7 @@ content.close();
 ```
 
 `onclose` プロパティに関数を設定すると、そのタブを閉じようとしたときに呼び出されます。  
-`false` が返されると、閉じるのをやめます。
+`false` が返されると閉じることをキャンセルします。
 ```javascript
 content.onclose = function () {
 	return confirm('閉じますか？');
@@ -68,7 +92,21 @@ content.onclose = function () {
 
 タブが閉じられているか確認できます。
 ```javascript
-var boolean = content.isClosed();
+if (content.isClosed()) {
+	// closed
+}
+```
+
+`serialize`, `restore` メソッドによって、レイアウトのシリアライズや復元が可能です。  
+復元する場合、`init` を呼び出す必要はありません。
+```javascript
+var str = dd.serialize();
+dd.restore(str);
 ```
 
 ## 備考
+- `dd.layout` を操作することによりレイアウトを制御できます。  
+`DryDock` からコンストラクタ `Container`, `Float`, `Dock`, `Pane`, `Main`, `Sub`, `Content` を取得できます。
+
+- old-browsers ブランチは IE 7 や Safari 5, Opera 12 などで動作を確認しています。  
+`JSON` オブジェクトが無かった場合、`restore` はパースに `eval` を使用します。
