@@ -129,10 +129,11 @@ var Rect = (function () {
 	
 	Rect.from = function (rect) {
 		return new Rect(
-			rect.top,
-			rect.left,
-			rect.width  || rect.right  - rect.left,
-			rect.height || rect.bottom - rect.top);
+			rect.top, rect.left,
+			rect.width == null && rect.right != null ?
+				rect.right - rect.left : rect.width,
+			rect.height == null && rect.bottom != null ?
+				rect.bottom - rect.top : rect.height);
 	};
 	
 	prototype.plus = function (vector) {
