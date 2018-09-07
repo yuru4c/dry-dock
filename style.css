@@ -22,7 +22,7 @@
 
 
 .dd-overlay, .dd-body .dd-cover,
-.dd-floating .dd-float.dd-active .dd-cover {
+.dd-floating .dd-frame.dd-active .dd-cover {
 	display: none;
 }
 .dd-dragging .dd-overlay,
@@ -53,14 +53,14 @@
 }
 
 
-.dd-float {
+.dd-frame {
 	position: absolute;
 }
 .dd-fbody {
 	margin: 4px;
 	border: 2px solid;
 }
-.dd-float .dd-sub {
+.dd-frame .dd-sub {
 	height: 100%;
 	z-index: 1;
 }
@@ -150,6 +150,7 @@
 .dd-tab.dd-active .dd-close {
 	display: block;
 }
+.dd-tab.dd-fixed .dd-close,
 .dd-floating .dd-main .dd-close {
 	display: none;
 }
@@ -170,6 +171,7 @@
 .dd-main .dd-tab.dd-active .dd-title {
 	margin-right: 24px;
 }
+.dd-main .dd-tab.dd-fixed .dd-title,
 .dd-floating .dd-main .dd-tab.dd-active .dd-title {
 	margin-right: 10px;
 }
@@ -183,7 +185,8 @@
 }
 
 
-.dd-sub .dd-title {
+.dd-sub .dd-title,
+.dd-sub .dd-tab.dd-active.dd-fixed .dd-title {
 	margin-right: 8px;
 	margin-left:  8px;
 }
