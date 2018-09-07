@@ -2816,7 +2816,7 @@ var Content = _(function (Base, base) {
 		this.tab.setFixed(fixed);
 	};
 	
-	prototype.visibilitychanged = function (hidden) {
+	prototype.setHidden = function (hidden) {
 		if (hidden == this.hidden) return;
 		this.hidden = hidden;
 		
@@ -2833,12 +2833,12 @@ var Content = _(function (Base, base) {
 	prototype.activating = function () {
 		this.addActiveClass();
 		this.tab.addActiveClass();
-		this.visibilitychanged(false);
+		this.setHidden(false);
 	};
 	prototype.deactivating = function () {
 		this.removeActiveClass();
 		this.tab.removeActiveClass();
-		this.visibilitychanged(true);
+		this.setHidden(true);
 	};
 	
 	prototype.close = function () {

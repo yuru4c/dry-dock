@@ -2,7 +2,7 @@
 
 ## 概要
 ドッキングウィンドウの JavaScript と CSS による実装です。  
-たったの 3000 行で書かれており、機能は最低限で軽量です。
+たったの 3000 行程度で書かれており、機能は最低限で軽量です。
 
 ## 入門
 初期レイアウトを作成する準備をします。
@@ -49,6 +49,8 @@ dd.init();
 ```
 
 子要素は取り込まれ、id をキーとして `contents` に格納されます。  
+`data-dd-title` 属性でタブのタイトルを設定、  
+`data-dd-fixed` 属性で閉じるボタンを隠すことができます。  
 これらは以下のようにして開くことができます。
 ```javascript
 var content = dd.contents['id'];
@@ -58,7 +60,9 @@ dd.openMain(content);
 dd.openSub(content);
 ```
 
-`openSub` の第二引数には位置と大きさを指定できます。
+`openSub` の第二引数には位置と大きさを指定できます。  
+すべて任意であり、位置が省略された場合は画面の中央になります。  
+また、既存のウィンドウに重なる場合は右下へ移動されます。
 ```javascript
 dd.openSub(content, {
 	top: 2, left: 2,
@@ -75,6 +79,21 @@ var content = dd.open(element);
 タイトルは変更できます。
 ```javascript
 content.setTitle('タイトル');
+```
+
+`onvisibilitychange` プロパティに関数を設定すると、そのタブの表示状態が変化したときに呼び出されます。  
+`hidden` プロパティから隠されているか取得できます。
+```javascript
+content.onvisibilitychange = function () {
+	if (this.hidden) {
+		// hidden
+	}
+};
+```
+
+閉じるボタンを隠すかどうか設定できます。
+```javascript
+content.setFixed(true);
 ```
 
 タブは閉じることができます。
