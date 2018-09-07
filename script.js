@@ -2346,20 +2346,17 @@ var Pane = _(function (Base, base) {
 		delete this.drag;
 	};
 	
-	prototype.detachChild = function (content, i) {
-		if (i == this.children.length - 1) {
-			if (i == content.index) i--;
-		} else {
-			if (i >= content.index) i++;
-		}
-		this.active = null;
-		this.activateChild(this.children[i]);
-		this.removeChild(content);
+	prototype.merge = function (pane, ref) {
+		var length = pane.children.length;
+		this.remSize -= Splitter.SIZE * (length - 1);
+		this.calcSizes();
 		
-		var sub = new Sub();
-		sub.appendChild(content, true);
-		sub.activateChild(content);
-		return sub;
+		for (var i = 0; i < length; i++) {
+			var child = pane.children[i];
+			child.size = pane.sizes[i] / this.remSize;
+			this.insertChild(child, ref);
+		}
+		this.removeChild(ref, true);
 	};
 	
 	prototype.appendChild = function (child) {
@@ -2535,10 +2532,14 @@ var Contents = _(function (Base, base) {
 		delete this.cRect;
 	};
 	
-	prototype.detachChild = function (content, active) {
-		var length = this.children.length;
-		this.activateChild(this.children[
-			active < length ? active : length - 1]);
+	prototype.detachChild = function (content, i) {
+		if (i == this.children.length - 1) {
+			if (i == content.index) i--;
+		} else {
+			if (i >= content.index) i++;
+		}
+		this.active = null;
+		this.activateChild(this.children[i]);
 		this.removeChild(content);
 		
 		var sub = new Sub();
