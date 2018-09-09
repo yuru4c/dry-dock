@@ -1,4 +1,4 @@
-var DryDock = (function ($, Node, Math, JSON) {
+var DryDock = (function ($, Math, JSON) {
 
 var NAME_PREFIX = 'dd-';
 
@@ -1720,7 +1720,7 @@ var Container = _(function (Base, base) {
 			var point = Vector.from(event);
 			if (pointer.hardDrag) {
 				var sq = point.minus(pointer.dragStart).square();
-				if (sq < Draggable.THRESHOLD) return;
+				if (sq < Draggable.THRESHOLD) return false;
 				pointer.hardDrag = false;
 			}
 			var diff = point.minus(pointer.point);
@@ -2792,7 +2792,7 @@ var Content = _(function (Base, base) {
 		
 		var f = Options.get(options, 'fixed');
 		var fixed = f ? f.value :
-			iframe.hasAttribute(FIXED_NAME);
+			iframe.getAttributeNode(FIXED_NAME) ? true : false;
 		
 		this.hidden = true;
 		
@@ -2905,11 +2905,9 @@ return (function () {
 		this.layout = container;
 		this.contents = container.contents;
 		
-		if (typeof addEventListener == 'function') {
-			addEventListener('resize', function () {
-				container.onresize();
-			});
-		}
+		// addEventListener('resize', function () {
+		// 	container.onresize();
+		// });
 	}
 	var prototype = DryDock.prototype;
 	
@@ -2945,33 +2943,6 @@ return (function () {
 		}
 		return rect;
 	}
-	
-	var json = typeof JSON == 'undefined' ? {
-		parse: function (json) {
-			return eval('(' + json + ')');
-		},
-		stringify: function stringify(value) {
-			switch (typeof value) {
-				case 'string': return '"' + value + '"';
-				case 'object':
-				if (typeof value.toJSON == 'function')
-					return stringify(value.toJSON());
-				var strs = [];
-				if (value instanceof Array) {
-					for (var i = 0; i < value.length; i++)
-						strs[i] = stringify(value[i]);
-					return '[' + strs + ']';
-				}
-				for (var k in value)
-					if (value.hasOwnProperty(k))
-						strs.push(
-							stringify(k) + ':' +
-							stringify(value[k]));
-				return '{' + strs + '}';
-			}
-			return String(value);
-		}
-	} : JSON;
 	
 	prototype.open = function (element) {
 		var content = new Content(element);
@@ -3019,11 +2990,11 @@ return (function () {
 	};
 	
 	prototype.serialize = function () {
-		return json.stringify(this.layout);
+		return JSON.stringify(this.layout);
 	};
 	prototype.restore = function (jsonString) {
 		this.layout.init();
-		this.layout.fromJSON(json.parse(jsonString));
+		this.layout.fromJSON(JSON.parse(jsonString));
 		this.layout.activate();
 		this.layout.onresize();
 	};
@@ -3031,4 +3002,29 @@ return (function () {
 	return DryDock;
 })();
 
-})(document, Node, Math, JSON);
+})(document, Math, typeof JSON == 'undefined' ? {
+	parse: function (json) {
+		return eval('(' + json + ')');
+	},
+	stringify: function stringify(value) {
+		switch (typeof value) {
+			case 'string': return '"' + value + '"';
+			case 'object':
+			if (typeof value.toJSON == 'function')
+				return stringify(value.toJSON());
+			var strs = [];
+			if (value instanceof Array) {
+				for (var i = 0; i < value.length; i++)
+					strs[i] = stringify(value[i]);
+				return '[' + strs + ']';
+			}
+			for (var k in value)
+				if (value.hasOwnProperty(k))
+					strs.push(
+						stringify(k) + ':' +
+						stringify(value[k]));
+			return '{' + strs + '}';
+		}
+		return String(value);
+	}
+}: JSON);
