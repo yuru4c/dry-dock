@@ -721,7 +721,7 @@ var Tab = _(function (Base, base) {
 	
 	function Drag(tab) {
 		this.contents = tab.tabstrip.parent;
-		this.detachable = tab.parent.src;
+		this.detachable = tab.parent.html;
 		
 		if (this.detachable) {
 			this.diff = Vector.ZERO;
