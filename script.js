@@ -237,10 +237,10 @@ var EdgeDef = (function () {
 
 var ButtonDef = (function () {
 	
-	function ButtonDef(letter, horizontal, last) {
+	function ButtonDef(letter, horizontal, order) {
 		this.letter = letter;
 		this.horizontal = horizontal;
-		this.last = last;
+		this.order = order;
 	}
 	var prototype = ButtonDef.prototype;
 	
@@ -270,7 +270,7 @@ var ButtonDef = (function () {
 	prototype.calcInsert = function (target) {
 		var parent = target.parent;
 		var ti = target.index;
-		var ni = this.last ? ti + 1 : ti - 1;
+		var ni = this.order ? ti + 1 : ti - 1;
 		
 		var tSize = target.size;
 		var nSize = parent.children[ni].size;
@@ -745,7 +745,6 @@ var Tab = _(function (Base, base) {
 	var FIXED_NAME = NAME_PREFIX + 'fixed';
 	
 	prototype.hardDrag = true;
-	
 	prototype.tabstrip = null;
 	
 	prototype.index = function () {
@@ -1144,10 +1143,8 @@ var GuidePane = _(function (Base, base) {
 		if (drag.pane && def != ButtonDef.CENTER) {
 			var pane = target.parent;
 			if (pane.horizontal == def.horizontal) {
-				
-				if (target.index != (def.last ?
-					pane.children.length - 1 : 0)) {
-					
+				var end = def.order ? pane.children.length - 1 : 0;
+				if (target.index != end) {
 					this.area.setInsertArea(def, target);
 					return;
 				}
@@ -1257,9 +1254,8 @@ var GuideButton = _(function (Base, base) {
 		if (parent instanceof Pane &&
 			parent.horizontal == this.def.horizontal) {
 			
-			if (target.index == (this.def.last ?
-				parent.children.length - 1 : 0)) {
-				
+			var end = this.def.order ? parent.children.length - 1 : 0;
+			if (target.index == end) {
 				this.splitPane(contents, target, parent);
 			} else {
 				this.insertPane(contents, target, parent);
@@ -1280,18 +1276,20 @@ var GuideButton = _(function (Base, base) {
 	prototype.newDock = function (child, pane) {
 		var dock = new Dock(this.def.horizontal);
 		dock.setChild(child);
-		var dockpane = this.def.last ? dock.lasts : dock.firsts;
+		
+		var dockpane = this.def.order ? dock.after : dock.before;
 		dockpane.appendChild(pane);
+		
 		return dock;
 	};
 	
 	prototype.outer = function (contents, container, child) {
 		contents.size = this.sizeOf(child, 5);
 		if (this.test(child)) {
-			if (this.def.last) {
-				child.lasts.appendChild(contents);
+			if (this.def.order) {
+				child.after.appendChild(contents);
 			} else {
-				child.firsts.prependChild(contents);
+				child.before.prependChild(contents);
 			}
 		} else {
 			container.removeChild();
@@ -1301,10 +1299,10 @@ var GuideButton = _(function (Base, base) {
 	prototype.dockPane = function (contents, target, parent) {
 		contents.size = this.sizeOf(target, 3);
 		if (this.test(parent)) {
-			if (this.def.last) {
-				parent.lasts.prependChild(contents);
+			if (this.def.order) {
+				parent.after.prependChild(contents);
 			} else {
-				parent.firsts.appendChild(contents);
+				parent.before.appendChild(contents);
 			}
 		} else {
 			parent.removeChild();
@@ -1320,7 +1318,7 @@ var GuideButton = _(function (Base, base) {
 		pane.size = target.size;
 		contents.size = target.size = .5;
 		
-		if (this.def.last) {
+		if (this.def.order) {
 			pane.appendChild(target);
 			pane.appendChild(contents);
 		} else {
@@ -1334,21 +1332,22 @@ var GuideButton = _(function (Base, base) {
 		parent.remSize -= Splitter.SIZE;
 		parent.calcSizes();
 		
-		contents.size = target.size =
-			(size - Splitter.SIZE) /
-			(parent.remSize * 2);
-		parent.insertChild(contents, this.def.last ?
+		var half = (size - Splitter.SIZE) / (parent.remSize * 2);
+		contents.size = half;
+		target  .size = half;
+		
+		parent.insertChild(contents, this.def.order ?
 			parent.children[target.index + 1] : target);
 	};
 	prototype.insertPane = function (contents, target, parent) {
 		var ins = this.def.calcInsert(target);
+		var i = this.def.order ? ins.n.i : ins.t.i;
 		
 		parent.sizes[ins.t.i] -= ins.t.diff;
 		parent.sizes[ins.n.i] -= ins.n.diff;
-		parent.sizes.splice(this.def.last ?
-			ins.n.i : ins.t.i, 0, ins.size);
+		parent.sizes.splice(i, 0, ins.size);
 		
-		parent.insertChild(contents, this.def.last ?
+		parent.insertChild(contents, this.def.order ?
 			parent.children[ins.t.i + 1] : target);
 		
 		parent.remSize -= Splitter.SIZE;
@@ -2030,13 +2029,13 @@ var Dock = _(function (Base, base) {
 		Base.call(this, 'dock');
 		
 		this.horizontal = horizontal;
-		this.firsts = new DockPane(this, false);
-		this.lasts  = new DockPane(this, true);
+		this.before = new DockPane(this, false);
+		this.after  = new DockPane(this, true);
 		
 		// DOM
 		if (horizontal) this.addHorizontalClass();
-		this.body.appendChild(this.firsts.element);
-		this.body.appendChild(this.lasts .element);
+		this.body.appendChild(this.before.element);
+		this.body.appendChild(this.after .element);
 	}
 	var prototype = inherit(Dock, base);
 	
@@ -2045,14 +2044,14 @@ var Dock = _(function (Base, base) {
 	Dock.fromJSON = function (container, json) {
 		var dock = new Dock(json.horizontal);
 		dock.fromJSON(container, json);
-		dock.firsts.fromJSON(container, json.firsts);
-		dock.lasts .fromJSON(container, json.lasts);
+		dock.before.fromJSON(container, json.before);
+		dock.after .fromJSON(container, json.after);
 		return dock;
 	};
 	
 	prototype.onRemove = function () {
-		if (this.firsts.children.length) return;
-		if (this.lasts .children.length) return;
+		if (this.before.children.length) return;
+		if (this.after .children.length) return;
 		
 		var parent = this.parent;
 		parent.removeChild();
@@ -2060,8 +2059,8 @@ var Dock = _(function (Base, base) {
 		    this.child instanceof Dock) {
 			
 			parent.setChild(this.child.child);
-			parent.firsts.merge(this.child.firsts);
-			parent.lasts .merge(this.child.lasts);
+			parent.before.merge(this.child.before);
+			parent.after .merge(this.child.after);
 		} else {
 			parent.setChild(this.child);
 		}
@@ -2069,38 +2068,38 @@ var Dock = _(function (Base, base) {
 	
 	prototype.calcRect = function () {
 		base.calcRect.call(this);
-		this.firsts.calcRect();
-		this.lasts .calcRect();
+		this.before.calcRect();
+		this.after .calcRect();
 	};
 	prototype.getChild = function (cPoint) {
 		if (this.cRect.contains(cPoint)) {
 			return this.child .getChild(cPoint)
-			    || this.firsts.getChild(cPoint)
-			    || this.lasts .getChild(cPoint);
+			    || this.before.getChild(cPoint)
+			    || this.after .getChild(cPoint);
 		}
 		return null;
 	};
 	prototype.deleteRect = function () {
 		base.deleteRect.call(this);
-		this.firsts.deleteRect();
-		this.lasts .deleteRect();
+		this.before.deleteRect();
+		this.after .deleteRect();
 	};
 	
 	prototype.setChild = function (child) {
 		this.child = child;
 		child.parent = this;
-		this.body.insertBefore(child.element, this.lasts.element);
+		this.body.insertBefore(child.element, this.after.element);
 	};
 	
 	prototype.deactivateAll = function () {
 		base.deactivateAll.call(this);
-		this.firsts.deactivateAll();
-		this.lasts .deactivateAll();
+		this.before.deactivateAll();
+		this.after .deactivateAll();
 	};
 	
 	prototype.getMinSize = function () {
 		var size = this.child.getMinSize();
-		var sum = this.firsts.size + this.lasts.size;
+		var sum = this.before.size + this.after.size;
 		return this.horizontal ?
 			new Size(size.width + sum, size.height) :
 			new Size(size.width, size.height + sum);
@@ -2108,23 +2107,23 @@ var Dock = _(function (Base, base) {
 	
 	prototype.onresize = function (width, height) {
 		this.setSize(width, height);
-		var sum = this.firsts.size + this.lasts.size;
+		var sum = this.before.size + this.after.size;
 		if (this.horizontal) {
-			this.firsts.onresize(this.firsts.size, height);
+			this.before.onresize(this.before.size, height);
 			this.child .onresize(width - sum,      height);
-			this.lasts .onresize(this.lasts.size,  height);
+			this.after .onresize(this.after.size,  height);
 		} else {
-			this.firsts.onresize(width, this.firsts.size);
+			this.before.onresize(width, this.before.size);
 			this.child .onresize(width, height - sum);
-			this.lasts .onresize(width, this.lasts.size);
+			this.after .onresize(width, this.after.size);
 		}
 	};
 	
 	prototype.toJSON = function () {
 		var json = base.toJSON.call(this);
+		json.before = this.before;
+		json.after  = this.after;
 		json.horizontal = this.horizontal;
-		json.firsts = this.firsts;
-		json.lasts  = this.lasts;
 		json.type = Dock.TYPE;
 		return json;
 	};
@@ -2204,12 +2203,12 @@ var PaneBase = _(function (Base, base) {
 
 var DockPane = _(function (Base, base) {
 	
-	function DockPane(dock, last) {
+	function DockPane(dock, order) {
 		Base.call(this, 'dockpane', dock.horizontal);
 		this.parent = dock;
 		
 		this.size = 0;
-		this.last = last;
+		this.order = order;
 	}
 	var prototype = inherit(DockPane, base);
 	
@@ -2224,14 +2223,14 @@ var DockPane = _(function (Base, base) {
 	}
 	
 	prototype.onSplitterDragStart = function (splitter) {
-		var inner = this.last ? 0 : this.children.length - 1;
+		var inner = this.order ? 0 : this.children.length - 1;
 		if (splitter.index == inner) {
 			this.drag = new Drag(this, splitter.container);
 		}
 	};
 	prototype.onSplitterDrag = function (i, delta) {
 		var child = this.children[i];
-		if (this.last) delta = -delta;
+		if (this.order) delta = -delta;
 		
 		if (delta < -child.size) delta = -child.size;
 		var drag = this.drag;
@@ -2244,12 +2243,12 @@ var DockPane = _(function (Base, base) {
 			
 			drag.container.updateMinSize();
 		} else {
-			var next = this.children[this.last ? i - 1 : i + 1];
+			var next = this.children[this.order ? i - 1 : i + 1];
 			if (delta > next.size) delta = next.size;
 			child.size += delta;
 			next .size -= delta;
 		}
-		return this.last ? -delta : delta;
+		return this.order ? -delta : delta;
 	};
 	prototype.onSplitterDrop = function () {
 		delete this.drag;
@@ -2257,7 +2256,7 @@ var DockPane = _(function (Base, base) {
 	
 	prototype.merge = function (dockPane) {
 		var i, length = dockPane.children.length;
-		if (this.last) {
+		if (this.order) {
 			for (i = length - 1; i >= 0; i--) {
 				this.prependChild(dockPane.children[i]);
 			}
@@ -2273,7 +2272,7 @@ var DockPane = _(function (Base, base) {
 	};
 	prototype.appendChild = function (child) {
 		this.expand(child);
-		if (this.last) {
+		if (this.order) {
 			this.appendSplitter();
 			base.appendChild.call(this, child);
 		} else {
@@ -2299,8 +2298,7 @@ var DockPane = _(function (Base, base) {
 		this.expand(child);
 		base.insertChild.call(this, child, refChild);
 		this.insertSplitter(
-			child.index + this.last,
-			refChild.element);
+			child.index + this.order, refChild.element);
 	};
 	prototype.prependChild = function (child) {
 		this.insertChild(child, this.children[0]);
