@@ -1,4 +1,4 @@
-var DryDock = (function ($, Math, JSON) {
+var DryDock = (function ($, Node, Math, JSON) {
 
 var NAME_PREFIX = 'dd-';
 
@@ -141,10 +141,10 @@ var Rect = (function () {
 	Rect.from = function (rect) {
 		return new Rect(
 			rect.top, rect.left,
-			rect.width == null && rect.right != null ?
-				rect.right - rect.left : rect.width,
-			rect.height == null && rect.bottom != null ?
-				rect.bottom - rect.top : rect.height);
+			!('width'  in rect) && 'right'  in rect ?
+				rect.right  - rect.left : rect.width,
+			!('height' in rect) && 'bottom' in rect ?
+				rect.bottom - rect.top  : rect.height);
 	};
 	
 	prototype.plus = function (vector) {
@@ -1677,7 +1677,7 @@ var Container = _(function (Base, base) {
 		for (var node = element.firstChild; node; ) {
 			var next = node.nextSibling;
 			element.removeChild(node);
-			if (node.nodeType == 1) {
+			if (node.nodeType == Node.ELEMENT_NODE) {
 				var id = node.id;
 				if (id) {
 					var o = new Options(id);
@@ -2783,7 +2783,7 @@ var Content = _(function (Base, base) {
 		
 		var f = Options.get(options, 'fixed');
 		var fixed = f ? f.value :
-			iframe.getAttributeNode(FIXED_NAME) ? true : false;
+			iframe.getAttributeNode(FIXED_NAME) != null;
 		
 		this.hidden = true;
 		
@@ -2994,29 +2994,31 @@ return (function () {
 	return DryDock;
 })();
 
-})(document, Math, typeof JSON == 'undefined' ? {
-	parse: function (json) {
-		return eval('(' + json + ')');
-	},
-	stringify: function stringify(value) {
-		switch (typeof value) {
-			case 'string': return '"' + value + '"';
-			case 'object':
-			if (typeof value.toJSON == 'function')
-				return stringify(value.toJSON());
-			var strs = [];
-			if (value instanceof Array) {
-				for (var i = 0; i < value.length; i++)
-					strs[i] = stringify(value[i]);
-				return '[' + strs + ']';
+})(document, {ELEMENT_NODE: 1}, Math, (function (eval) {
+	return typeof JSON == 'undefined' ? {
+		parse: function (json) {
+			return eval('(' + json + ')');
+		},
+		stringify: function stringify(value) {
+			switch (typeof value) {
+				case 'string': return '"' + value + '"';
+				case 'object':
+				if (typeof value.toJSON == 'function')
+					return stringify(value.toJSON());
+				var strs = [];
+				if (value instanceof Array) {
+					for (var i = 0; i < value.length; i++)
+						strs[i] = stringify(value[i]);
+					return '[' + strs + ']';
+				}
+				for (var k in value)
+					if (value.hasOwnProperty(k))
+						strs.push(
+							stringify(k) + ':' +
+							stringify(value[k]));
+				return '{' + strs + '}';
 			}
-			for (var k in value)
-				if (value.hasOwnProperty(k))
-					strs.push(
-						stringify(k) + ':' +
-						stringify(value[k]));
-			return '{' + strs + '}';
+			return String(value);
 		}
-		return String(value);
-	}
-} : JSON);
+	} : JSON;
+})(eval));
