@@ -318,9 +318,8 @@ var Pointer = (function () {
 	function Pointer(container, event, draggable) {
 		this.container = container;
 		
-		var point = Vector.from(event);
-		this.point     = point;
-		this.dragStart = point;
+		this.point = Vector.from(event);
+		this.dragStart = this.point;
 		this.dragDiff  = Vector.ZERO;
 		this.hardDrag  = draggable.hardDrag;
 		this.firstDrag = true;
@@ -458,8 +457,7 @@ var Model = (function () {
 	
 	prototype.bodyRect = false;
 	prototype.getRect = function () {
-		var element = this.bodyRect ?
-			this.body : this.element;
+		var element = this.bodyRect ? this.body : this.element;
 		return Rect.from(element.getBoundingClientRect());
 	};
 	
@@ -515,11 +513,7 @@ var Control = _(function (Base, base) {
 	
 	prototype.setDisable = function (disable) {
 		this.disable = disable;
-		if (disable) {
-			this.hide();
-		} else {
-			this.show();
-		}
+		if (disable) this.hide(); else this.show();
 	};
 	
 	return Control;
@@ -835,6 +829,7 @@ var Close = _(function (Base, base) {
 	prototype.ondrag = function (delta) {
 		var drag = this.drag;
 		var point = this.container.pointer.point;
+		
 		var hovering = drag.rect.contains(point);
 		if (hovering != drag.hovering) {
 			drag.hovering = hovering;
@@ -1998,9 +1993,9 @@ var Frame = _(function (Base, base) {
 		this.setRect(this.rect);
 		this.child.layout(this.rect.width);
 	};
-	prototype.moveTo = function (rect) {
-		this.rect = rect;
-		this.setPos(rect.top, rect.left);
+	prototype.move = function (vector) {
+		this.rect = this.rect.plus(vector);
+		this.setPos(this.rect.top, this.rect.left);
 	};
 	
 	prototype.setSize = function (width, height) {
@@ -2436,8 +2431,7 @@ var Pane = _(function (Base, base) {
 	prototype.calcSizes = function () {
 		var length = this.children.length;
 		for (var i = 0; i < length; i++) {
-			this.children[i].size =
-				this.sizes[i] / this.remSize;
+			this.children[i].size = this.sizes[i] / this.remSize;
 		}
 	};
 	
@@ -2695,9 +2689,8 @@ var Sub = _(function (Base, base) {
 		var container = this.tabstrip.container;
 		
 		if (this.parent instanceof Frame) {
-			var r = this.parent.rect;
-			delta = max(delta, r);
-			this.parent.moveTo(r.plus(delta));
+			delta = max(delta, this.parent.rect);
+			this.parent.move(delta);
 			
 			container.guide.ondrag();
 			return delta;
@@ -2921,6 +2914,10 @@ return (function () {
 		TabStrip.HEIGHT,
 		TabStrip.HEIGHT);
 	
+	function c(size, rect, dimension) {
+		return (size[dimension] - rect[dimension]) / 2;
+	}
+	
 	function test(floats, rect) {
 		var children = floats.children;
 		var length = children.length;
@@ -2934,16 +2931,16 @@ return (function () {
 		while (test(floats, rect)) {
 			var diff = new Vector(
 				size.width  - rect.right(),
-				size.height - rect.bottom())
-				.max(Vector.ZERO).min(DIFF);
+				size.height - rect.bottom()
+			).max(Vector.ZERO).min(DIFF);
 			if (diff.equals(Vector.ZERO)) break;
 			rect = rect.plus(diff);
 		}
 		return rect;
 	}
 	
-	prototype.open = function (element) {
-		var content = new Content(element);
+	prototype.open = function (element, options) {
+		var content = new Content(element, options);
 		this.openMain(content);
 		return content;
 	};
@@ -2962,12 +2959,9 @@ return (function () {
 			
 			if (!r.width ) r.width  = 300;
 			if (!r.height) r.height = 200;
-			if (r.top  == null) {
-				r.top  = (s.height - r.height) / 2;
-			}
-			if (r.left == null) {
-				r.left = (s.width  - r.width)  / 2;
-			}
+			if (r.top  == null) r.top  = c(s, r, 'height');
+			if (r.left == null) r.left = c(s, r, 'width');
+			
 			r = move(this.layout.floats,
 				r.round(), s.shrink(Edge.SIZE));
 			

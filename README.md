@@ -62,7 +62,7 @@ dd.openSub(content);
 
 `openSub` の第二引数には位置と大きさを指定できます。  
 すべて任意であり、位置が省略された場合は画面の中央になります。  
-また、既存のウィンドウに重なる場合は右下へ移動されます。
+また、既存のウィンドウと重なる場合はその右下に開かれます。
 ```javascript
 dd.openSub(content, {
 	top: 2, left: 2,
@@ -71,9 +71,12 @@ dd.openSub(content, {
 ```
 
 メインタブは指定の要素で開くことができます。  
-こうして開かれたタブはシリアライズされません。
+こうして開かれたタブはシリアライズされません。  
+第二引数には任意で、タブのタイトルと閉じるボタンを隠すかどうかを指定できます。
 ```javascript
-var content = dd.open(element);
+var content = dd.open(element, {
+	title: 'タイトル', fixed: true
+});
 ```
 
 タイトルは変更できます。
