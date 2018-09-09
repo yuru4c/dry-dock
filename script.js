@@ -3027,4 +3027,4 @@ return (function () {
 		}
 		return String(value);
 	}
-}: JSON);
+} : JSON);
