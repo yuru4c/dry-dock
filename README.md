@@ -128,7 +128,7 @@ dd.restore(str);
 
 ## 備考
 - `dd.layout` を操作することによりレイアウトを制御できます。  
-`DryDock` からコンストラクタ `Container`, `Float`, `Dock`, `Pane`, `Main`, `Sub`, `Content` を取得できます。
+`DryDock` からコンストラクタ `Container`, `Frame`, `Dock`, `Pane`, `Main`, `Sub`, `Content` を取得できます。
 
 - old-browsers ブランチは IE 7 や Safari 5, Opera 12 などで動作を確認しています。  
 リサイズイベントを拾わないため、`dd.layout.onresize()` を必要に応じて呼び出してください。  
