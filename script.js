@@ -335,20 +335,20 @@ var Pointer = (function () {
 	return Pointer;
 })();
 
-var Options = (function () {
+var Option = (function () {
 	
-	function Options(value) {
+	function Option(value) {
 		this.value = value;
 	}
 	
-	Options.get = function (options, key) {
+	Option.get = function (options, key) {
 		if (options != null && key in options) {
-			return new Options(options[key]);
+			return new Option(options[key]);
 		}
 		return null;
 	};
 	
-	return Options;
+	return Option;
 })();
 
 var Division = (function () {
@@ -1476,6 +1476,8 @@ var Single = _(function (Base, base) {
 	
 	function Single(className) {
 		Base.call(this, className);
+		
+		this.child = null;
 	}
 	var prototype = inherit(Single, base);
 	
@@ -1668,7 +1670,7 @@ var Container = _(function (Base, base) {
 			if (node.nodeType == Node.ELEMENT_NODE) {
 				var id = node.id;
 				if (id) {
-					var o = new Options(id);
+					var o = new Option(id);
 					this.contents[id] = new Content(node, o);
 				}
 			}
@@ -1736,6 +1738,9 @@ var Container = _(function (Base, base) {
 	Container.MARGIN = 6; // px const
 	Container.M2 = Container.MARGIN * 2;
 	Container.MP = Container.MARGIN + 'px';
+	
+	prototype.minSize = null;
+	prototype.cSize   = null;
 	
 	prototype.mousedown = function (event, draggable) {
 		this.pointer = new Pointer(this, event, draggable);
@@ -2331,13 +2336,13 @@ var Pane = _(function (Base, base) {
 		if (this.drag) return;
 		var n = i + 1;
 		
-		var cSize = this.sizes[i];
+		var iSize = this.sizes[i];
 		var nSize = this.sizes[n];
 		
-		if (delta < -cSize) delta = -cSize;
+		if (delta < -iSize) delta = -iSize;
 		if (delta >  nSize) delta =  nSize;
 		
-		this.children[i].size = (cSize + delta) / this.remSize;
+		this.children[i].size = (iSize + delta) / this.remSize;
 		this.children[n].size = (nSize - delta) / this.remSize;
 		
 		return delta;
@@ -2587,10 +2592,6 @@ var Main = _(function (Base, base) {
 		TabStrip.MAIN);
 	var TAB_SIZE = 120; // px const
 	
-	prototype.getMain = function () {
-		return this;
-	};
-	
 	prototype.getMinSize = function () {
 		return MIN_SIZE;
 	};
@@ -2601,6 +2602,10 @@ var Main = _(function (Base, base) {
 	};
 	prototype.setTabSize = function () {
 		this.tabstrip.onresize(this.width, TAB_SIZE, 0);
+	};
+	
+	prototype.getMain = function () {
+		return this;
 	};
 	
 	prototype.toJSON = function () {
@@ -2746,17 +2751,17 @@ var Content = _(function (Base, base) {
 		
 		this.iframe = iframe;
 		
-		this.html = options instanceof Options;
+		this.html = options instanceof Option;
 		if (this.html) {
 			this.id = options.value;
 			options = null;
 		}
 		
-		var t = Options.get(options, 'title');
+		var t = Option.get(options, 'title');
 		this.title = t ? t.value :
 			iframe.getAttribute(TITLE_NAME);
 		
-		var f = Options.get(options, 'fixed');
+		var f = Option.get(options, 'fixed');
 		var fixed = f ? f.value :
 			iframe.hasAttribute(FIXED_NAME);
 		
