@@ -182,10 +182,8 @@ var Rect = (function () {
 	};
 	
 	prototype.contains = function (vector) {
-		return this.left <= vector.x
-		    && this.top  <= vector.y
-		    && vector.x < this.left + this.width
-		    && vector.y < this.top  + this.height;
+		return this.left <= vector.x && vector.x < this.right()
+		    && this.top  <= vector.y && vector.y < this.bottom();
 	};
 	
 	prototype.equals = function (rect) {
@@ -262,8 +260,7 @@ var ButtonDef = (function () {
 	}
 	
 	prototype.sizeOf = function (rect) {
-		var size = this.horizontal ?
-			rect.width : rect.height;
+		var size = this.horizontal ? rect.width : rect.height;
 		return size - Splitter.SIZE;
 	};
 	
@@ -299,8 +296,8 @@ var ButtonPos = (function () {
 			GuideButton.MARGIN,
 			GuideButton.MARGIN);
 		this.l = new Vector(
-			rect.width  - GuideButton.SM,
-			rect.height - GuideButton.SM);
+			rect.width  - GuideButton.DIFF,
+			rect.height - GuideButton.DIFF);
 	}
 	
 	ButtonPos.center = function (rect) {
@@ -339,20 +336,20 @@ var Pointer = (function () {
 	return Pointer;
 })();
 
-var Options = (function () {
+var Option = (function () {
 	
-	function Options(value) {
+	function Option(value) {
 		this.value = value;
 	}
 	
-	Options.get = function (options, key) {
+	Option.get = function (options, key) {
 		if (options != null && key in options) {
-			return new Options(options[key]);
+			return new Option(options[key]);
 		}
 		return null;
 	};
 	
-	return Options;
+	return Option;
 })();
 
 var Division = (function () {
@@ -418,6 +415,8 @@ var Model = (function () {
 	}
 	
 	prototype.tagName = 'div';
+	prototype.bodyRect = false;
+	
 	prototype.parent = null;
 	
 	prototype.onActivate = function () { };
@@ -455,7 +454,6 @@ var Model = (function () {
 		this.element.style.left = '';
 	};
 	
-	prototype.bodyRect = false;
 	prototype.getRect = function () {
 		var element = this.bodyRect ? this.body : this.element;
 		return Rect.from(element.getBoundingClientRect());
@@ -579,8 +577,7 @@ var Splitter = _(function (Base, base) {
 		Base.call(this, 'splitter', pane);
 		
 		this.index = index;
-		this.setCursor(pane.horizontal ?
-			'ew-resize' : 'ns-resize');
+		this.setCursor(pane.horizontal ? 'ew-resize' : 'ns-resize');
 	}
 	var prototype = inherit(Splitter, base);
 	
@@ -722,6 +719,8 @@ var Tab = _(function (Base, base) {
 	}
 	var prototype = inherit(Tab, base);
 	
+	var FIXED_NAME = NAME_PREFIX + 'fixed';
+	
 	function Drag(tab) {
 		this.contents = tab.tabstrip.parent;
 		this.detachable = this.contents instanceof Sub;
@@ -735,8 +734,6 @@ var Tab = _(function (Base, base) {
 		}
 		this.x = 0;
 	}
-	
-	var FIXED_NAME = NAME_PREFIX + 'fixed';
 	
 	prototype.hardDrag = true;
 	prototype.tabstrip = null;
@@ -1093,10 +1090,10 @@ var GuidePane = _(function (Base, base) {
 		this.setRect(drag.rect);
 		
 		var c = ButtonPos.center(drag.rect);
-		this.top   .setPos(c.y - GuideButton.SM, c.x);
-		this.right .setPos(c.y, c.x + GuideButton.SM);
-		this.bottom.setPos(c.y + GuideButton.SM, c.x);
-		this.left  .setPos(c.y, c.x - GuideButton.SM);
+		this.top   .setPos(c.y - GuideButton.DIFF, c.x);
+		this.right .setPos(c.y, c.x + GuideButton.DIFF);
+		this.bottom.setPos(c.y + GuideButton.DIFF, c.x);
+		this.left  .setPos(c.y, c.x - GuideButton.DIFF);
 		this.center.setPos(c.y, c.x);
 		
 		var frame = parent instanceof Frame;
@@ -1206,7 +1203,7 @@ var GuideButton = _(function (Base, base) {
 	
 	GuideButton.SIZE   = 40; // px const
 	GuideButton.MARGIN =  3; // px const
-	GuideButton.SM = GuideButton.SIZE + GuideButton.MARGIN;
+	GuideButton.DIFF = GuideButton.SIZE + GuideButton.MARGIN;
 	
 	var HOVER_NAME = NAME_PREFIX + 'hover';
 	
@@ -1428,7 +1425,7 @@ var GuideArea = _(function (Base, base) {
 	};
 	prototype.setOuterArea = function (def, rect) {
 		var size = def.sizeOf(rect) - Container.M2;
-		this.set(def, Container.PX,
+		this.set(def, Container.MP,
 			size - size / 5 + Container.MARGIN);
 	};
 	
@@ -1488,17 +1485,10 @@ var Single = _(function (Base, base) {
 	
 	function Single(className) {
 		Base.call(this, className);
+		
+		this.child = null;
 	}
 	var prototype = inherit(Single, base);
-	
-	prototype.calcRect = function () {
-		this.cRect = this.getRect();
-		this.child.calcRect();
-	};
-	prototype.deleteRect = function () {
-		delete this.cRect;
-		this.child.deleteRect();
-	};
 	
 	prototype.setChild = function (child) {
 		this.child = child;
@@ -1509,6 +1499,15 @@ var Single = _(function (Base, base) {
 		delete this.child.parent;
 		this.body.removeChild(this.child.element);
 		this.child = null;
+	};
+	
+	prototype.calcRect = function () {
+		this.cRect = this.getRect();
+		this.child.calcRect();
+	};
+	prototype.deleteRect = function () {
+		delete this.cRect;
+		this.child.deleteRect();
 	};
 	
 	prototype.deactivateAll = function () {
@@ -1532,31 +1531,6 @@ var Multiple = _(function (Base, base) {
 		this.children = [];
 	}
 	var prototype = inherit(Multiple, base);
-	
-	prototype.calcRect = function () {
-		this.cRect = this.getRect();
-		var length = this.children.length;
-		for (var i = 0; i < length; i++) {
-			this.children[i].calcRect();
-		}
-	};
-	prototype.getChild = function (cPoint) {
-		if (this.cRect.contains(cPoint)) {
-			var length = this.children.length;
-			for (var i = 0; i < length; i++) {
-				var child = this.children[i].getChild(cPoint);
-				if (child) return child;
-			}
-		}
-		return null;
-	};
-	prototype.deleteRect = function () {
-		delete this.cRect;
-		var length = this.children.length;
-		for (var i = 0; i < length; i++) {
-			this.children[i].deleteRect();
-		}
-	};
 	
 	prototype.appendChild = function (child) {
 		child.parent = this;
@@ -1582,6 +1556,31 @@ var Multiple = _(function (Base, base) {
 			this.children[i].index = i;
 		}
 		this.body.insertBefore(child.element, refChild.element);
+	};
+	
+	prototype.calcRect = function () {
+		this.cRect = this.getRect();
+		var length = this.children.length;
+		for (var i = 0; i < length; i++) {
+			this.children[i].calcRect();
+		}
+	};
+	prototype.getChild = function (cPoint) {
+		if (this.cRect.contains(cPoint)) {
+			var length = this.children.length;
+			for (var i = 0; i < length; i++) {
+				var child = this.children[i].getChild(cPoint);
+				if (child) return child;
+			}
+		}
+		return null;
+	};
+	prototype.deleteRect = function () {
+		delete this.cRect;
+		var length = this.children.length;
+		for (var i = 0; i < length; i++) {
+			this.children[i].deleteRect();
+		}
 	};
 	
 	prototype.deactivateAll = function () {
@@ -1680,7 +1679,7 @@ var Container = _(function (Base, base) {
 			if (node.nodeType == Node.ELEMENT_NODE) {
 				var id = node.id;
 				if (id) {
-					var o = new Options(id);
+					var o = new Option(id);
 					this.contents[id] = new Content(node, o);
 				}
 			}
@@ -1751,7 +1750,10 @@ var Container = _(function (Base, base) {
 	
 	Container.MARGIN = 6; // px const
 	Container.M2 = Container.MARGIN * 2;
-	Container.PX = Container.MARGIN + 'px';
+	Container.MP = Container.MARGIN + 'px';
+	
+	prototype.minSize = null;
+	prototype.cSize   = null;
 	
 	prototype.mousedown = function (event, draggable) {
 		this.pointer = new Pointer(this, event, draggable);
@@ -1943,9 +1945,6 @@ var Frame = _(function (Base, base) {
 	}
 	var prototype = inherit(Frame, base);
 	
-	var HANDLE = 6; // px const
-	var H2 = HANDLE * 2;
-	
 	Frame.MIN_R = Edge.SIZE + TabStrip.HEIGHT;
 	
 	Frame.fromJSON = function (container, json) {
@@ -1954,6 +1953,11 @@ var Frame = _(function (Base, base) {
 		frame.rect = Rect.from(json.rect);
 		return frame;
 	};
+	
+	var HANDLE = 6; // px const
+	var H2 = HANDLE * 2;
+	
+	prototype.bodyRect = true;
 	
 	prototype.forEdgeDef = function (v, h, cursor) {
 		if (cursor) {
@@ -1969,8 +1973,6 @@ var Frame = _(function (Base, base) {
 	prototype.removeChild = function (sub, pauseLayout) {
 		this.parent.removeChild(this, pauseLayout);
 	};
-	
-	prototype.bodyRect = true;
 	
 	prototype.getChild = function (cPoint) {
 		if (this.cRect.contains(cPoint)) {
@@ -2061,6 +2063,12 @@ var Dock = _(function (Base, base) {
 		}
 	};
 	
+	prototype.setChild = function (child) {
+		this.child = child;
+		child.parent = this;
+		this.body.insertBefore(child.element, this.after.element);
+	};
+	
 	prototype.calcRect = function () {
 		base.calcRect.call(this);
 		this.before.calcRect();
@@ -2078,12 +2086,6 @@ var Dock = _(function (Base, base) {
 		base.deleteRect.call(this);
 		this.before.deleteRect();
 		this.after .deleteRect();
-	};
-	
-	prototype.setChild = function (child) {
-		this.child = child;
-		child.parent = this;
-		this.body.insertBefore(child.element, this.after.element);
 	};
 	
 	prototype.deactivateAll = function () {
@@ -2328,13 +2330,13 @@ var Pane = _(function (Base, base) {
 	
 	Pane.TYPE = 'pane';
 	
-	function Drag() { }
-	
 	Pane.fromJSON = function (container, json) {
 		var pane = new Pane(json.horizontal);
 		pane.fromJSON(container, json);
 		return pane;
 	};
+	
+	function Drag() { }
 	
 	prototype.onSplitterDragStart = function (splitter) {
 		if (this.remSize == 0) {
@@ -2347,13 +2349,13 @@ var Pane = _(function (Base, base) {
 		if (this.drag) return;
 		var n = i + 1;
 		
-		var cSize = this.sizes[i];
+		var iSize = this.sizes[i];
 		var nSize = this.sizes[n];
 		
-		if (delta < -cSize) delta = -cSize;
+		if (delta < -iSize) delta = -iSize;
 		if (delta >  nSize) delta =  nSize;
 		
-		this.children[i].size = (cSize + delta) / this.remSize;
+		this.children[i].size = (iSize + delta) / this.remSize;
 		this.children[n].size = (nSize - delta) / this.remSize;
 		
 		return delta;
@@ -2529,13 +2531,6 @@ var Contents = _(function (Base, base) {
 		}
 	};
 	
-	prototype.deactivateAll = function () {
-		var length = this.children.length;
-		for (var i = 0; i < length; i++) {
-			this.children[i].deactivating();
-		}
-	};
-	
 	prototype.calcRect = function () {
 		this.cRect = this.getRect();
 	};
@@ -2545,6 +2540,13 @@ var Contents = _(function (Base, base) {
 	};
 	prototype.deleteRect = function () {
 		delete this.cRect;
+	};
+	
+	prototype.deactivateAll = function () {
+		var length = this.children.length;
+		for (var i = 0; i < length; i++) {
+			this.children[i].deactivating();
+		}
 	};
 	
 	prototype.onStripDragStart = function () { };
@@ -2574,11 +2576,6 @@ var Main = _(function (Base, base) {
 	}
 	var prototype = inherit(Main, base);
 	
-	var MIN_SIZE = new Size(
-		TabStrip.MAIN,
-		TabStrip.MAIN);
-	var TAB_SIZE = 120; // px const
-	
 	Main.TYPE = 'main';
 	
 	Main.fromJSON = function (container, json) {
@@ -2587,9 +2584,10 @@ var Main = _(function (Base, base) {
 		return main;
 	};
 	
-	prototype.getMain = function () {
-		return this;
-	};
+	var MIN_SIZE = new Size(
+		TabStrip.MAIN,
+		TabStrip.MAIN);
+	var TAB_SIZE = 120; // px const
 	
 	prototype.getMinSize = function () {
 		return MIN_SIZE;
@@ -2601,6 +2599,10 @@ var Main = _(function (Base, base) {
 	};
 	prototype.setTabSize = function () {
 		this.tabstrip.onresize(this.width, TAB_SIZE, 0);
+	};
+	
+	prototype.getMain = function () {
+		return this;
 	};
 	
 	prototype.toJSON = function () {
@@ -2637,8 +2639,6 @@ var Sub = _(function (Base, base) {
 	}
 	var prototype = inherit(Sub, base);
 	
-	var TAB_SIZE = 112; // px const
-	
 	Sub.TYPE = 'sub';
 	
 	Sub.fromJSON = function (container, json) {
@@ -2646,6 +2646,8 @@ var Sub = _(function (Base, base) {
 		sub.fromJSON(container, json);
 		return sub;
 	};
+	
+	var TAB_SIZE = 112; // px const
 	
 	function max(delta, rect) {
 		return delta.max(new Vector(
@@ -2771,17 +2773,17 @@ var Content = _(function (Base, base) {
 		
 		this.iframe = iframe;
 		
-		this.html = options instanceof Options;
+		this.html = options instanceof Option;
 		if (this.html) {
 			this.id = options.value;
 			options = null;
 		}
 		
-		var t = Options.get(options, 'title');
+		var t = Option.get(options, 'title');
 		this.title = t ? t.value :
 			iframe.getAttribute(TITLE_NAME);
 		
-		var f = Options.get(options, 'fixed');
+		var f = Option.get(options, 'fixed');
 		var fixed = f ? f.value :
 			iframe.getAttributeNode(FIXED_NAME) != null;
 		
