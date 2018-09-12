@@ -939,13 +939,12 @@ var GuideBase = _(function (Base, base) {
 			if (this.droppable) {
 				this.droppable.onleave();
 			}
+			this.droppable = droppable;
 			if (droppable) {
-				this.droppable = droppable;
 				droppable.onenter();
 				this.enter(droppable);
 				this.area.show();
 			} else {
-				delete this.droppable;
 				this.area.hide();
 			}
 		}
@@ -955,11 +954,16 @@ var GuideBase = _(function (Base, base) {
 		this.setDroppable(null);
 		this.hide();
 	};
+	
 	prototype.drop = function (contents, target) {
 		if (this.droppable) {
 			this.droppable.ondrop(contents, target);
 		}
 		this.onleave();
+	};
+	prototype.ondrop = function () {
+		delete this.droppable;
+		delete this.drag;
 	};
 	
 	return GuideBase;
@@ -1031,21 +1035,19 @@ var Guide = _(function (Base, base) {
 	};
 	
 	prototype.enter = function (button) {
-		this.area.setOuterArea(
-			button.def, this.container.cRect);
+		this.area.setOuterArea(button.def, this.container.cRect);
 	};
 	
 	prototype.ondrop = function () {
-		this.child.ondrop();
 		var drag = this.drag;
 		if (drag) {
-			delete this.drag;
-			
 			if (drag.target) {
 				this.child.drop(drag.contents, drag.target);
 			}
 			this.drop(drag.contents, this.container);
 		}
+		base.ondrop.call(this);
+		this.child.ondrop();
 		this.container.deleteRect();
 	};
 	
@@ -1134,10 +1136,6 @@ var GuidePane = _(function (Base, base) {
 			}
 		}
 		this.area.setArea(def, drag.rect);
-	};
-	
-	prototype.ondrop = function () {
-		delete this.drag;
 	};
 	
 	prototype.getButton = function (vector) {
@@ -1655,8 +1653,8 @@ var DockBase = _(function (Base, base) {
 
 var Container = _(function (Base, base) {
 	
-	var FLOATING_NAME = NAME_PREFIX + 'floating';
 	var DRAGGING_NAME = NAME_PREFIX + 'dragging';
+	var FLOATING_NAME = NAME_PREFIX + 'floating';
 	
 	function Container(element) {
 		Base.call(this, 'container');
@@ -2131,13 +2129,8 @@ var PaneBase = _(function (Base, base) {
 	
 	prototype.drag = null;
 	
-	prototype.replaceChild = function (child, oldChild) {
-		delete oldChild.parent;
-		child.parent = this;
-		this.children.splice(oldChild.index, 1, child);
-		child.index = oldChild.index;
-		
-		this.body.replaceChild(child.element, oldChild.element);
+	prototype.onSplitterDrop = function () {
+		delete this.drag;
 	};
 	
 	prototype.appendSplitter = function () {
@@ -2160,6 +2153,15 @@ var PaneBase = _(function (Base, base) {
 			this.splitters[i].index = i;
 		}
 		this.body.insertBefore(splitter.element, refElement);
+	};
+	
+	prototype.replaceChild = function (child, oldChild) {
+		delete oldChild.parent;
+		child.parent = this;
+		this.children.splice(oldChild.index, 1, child);
+		child.index = oldChild.index;
+		
+		this.body.replaceChild(child.element, oldChild.element);
 	};
 	
 	prototype.fromJSON = function (container, json) {
@@ -2196,14 +2198,14 @@ var DockPane = _(function (Base, base) {
 	}
 	var prototype = inherit(DockPane, base);
 	
-	function Drag(dockPane, container) {
+	function Drag(dockpane, container) {
 		this.container = container;
 		var size = this.container.size;
 		var min  = this.container.minSize;
-		var rem = dockPane.horizontal ?
+		var rem = dockpane.horizontal ?
 			size.width  - min.width :
 			size.height - min.height;
-		this.maxSize = dockPane.size + rem;
+		this.maxSize = dockpane.size + rem;
 	}
 	
 	prototype.onSplitterDragStart = function (splitter) {
@@ -2233,9 +2235,6 @@ var DockPane = _(function (Base, base) {
 			next .size -= delta;
 		}
 		return this.order ? -delta : delta;
-	};
-	prototype.onSplitterDrop = function () {
-		delete this.drag;
 	};
 	
 	prototype.merge = function (dockPane) {
@@ -2346,9 +2345,6 @@ var Pane = _(function (Base, base) {
 		this.children[n].size = (nSize - delta) / this.remSize;
 		
 		return delta;
-	};
-	prototype.onSplitterDrop = function () {
-		delete this.drag;
 	};
 	
 	prototype.merge = function (pane, ref) {
