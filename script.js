@@ -581,6 +581,9 @@ var Splitter = _(function (Base, base) {
 	
 	prototype.onmousedown = function () {
 		base.onmousedown.call(this);
+		if (this.parent instanceof Pane) {
+			if (this.parent.collapse) return;
+		}
 		this.addGrabbingClass();
 	};
 	prototype.ondragstart = function () {
@@ -906,7 +909,7 @@ var Edge = _(function (Base, base) {
 var GuideBase = _(function (Base, base) {
 	
 	function GuideBase(className, parent, container) {
-		Base.call(this, className, parent, container);
+		Base.call(this, className, parent);
 		
 		this.container = container;
 		
@@ -2237,15 +2240,16 @@ var DockPane = _(function (Base, base) {
 		return this.order ? -delta : delta;
 	};
 	
-	prototype.merge = function (dockPane) {
-		var i, length = dockPane.children.length;
+	prototype.merge = function (dockpane) {
+		var children = dockpane.children;
+		var i, length = children.length;
 		if (this.order) {
 			for (i = length - 1; i >= 0; i--) {
-				this.prependChild(dockPane.children[i]);
+				this.prependChild(children[i]);
 			}
 		} else {
 			for (i = 0; i < length; i++) {
-				this.appendChild(dockPane.children[i]);
+				this.appendChild(children[i]);
 			}
 		}
 	};
@@ -2311,6 +2315,8 @@ var Pane = _(function (Base, base) {
 	
 	function Pane(horizontal) {
 		Base.call(this, 'pane', horizontal);
+		
+		this.collapse = false;
 	}
 	var prototype = inherit(Pane, base);
 	
@@ -2323,6 +2329,8 @@ var Pane = _(function (Base, base) {
 	};
 	
 	function Drag() { }
+	
+	var COLLAPSE_NAME = NAME_PREFIX + 'collapse';
 	
 	prototype.onSplitterDragStart = function (splitter) {
 		if (this.remSize == 0) {
@@ -2348,14 +2356,26 @@ var Pane = _(function (Base, base) {
 	};
 	
 	prototype.merge = function (pane, ref) {
-		var length = pane.children.length;
-		this.remSize -= Splitter.SIZE * (length - 1);
-		this.calcSizes();
+		var children = pane.children;
+		var i, length = children.length;
+		var child;
 		
-		for (var i = 0; i < length; i++) {
-			var child = pane.children[i];
-			child.size = pane.sizes[i] / this.remSize;
-			this.insertChild(child, ref);
+		this.remSize -= pane.collapse ?
+			this.sizes[ref.index] : Splitter.SIZE * (length - 1);
+		if (this.remSize) {
+			this.calcSizes();
+			var sizes = pane.sizes;
+			for (i = 0; i < length; i++) {
+				child = children[i];
+				child.size = sizes[i] / this.remSize;
+				this.insertChild(child, ref);
+			}
+		} else {
+			for (i = 0; i < length; i++) {
+				child = children[i];
+				child.size *= ref.size;
+				this.insertChild(child, ref);
+			}
 		}
 		this.removeChild(ref, true);
 	};
@@ -2421,7 +2441,19 @@ var Pane = _(function (Base, base) {
 	};
 	
 	prototype.divideSizes = function (size) {
-		this.remSize = size < 0 ? 0 : size;
+		if (size < 0) {
+			this.remSize = 0;
+			if (!this.collapse) {
+				this.collapse = true;
+				this.addClass(COLLAPSE_NAME);
+			}
+		} else {
+			this.remSize = size;
+			if (this.collapse) {
+				this.collapse = false;
+				this.removeClass(COLLAPSE_NAME);
+			}
+		}
 		var division = new Division(this.remSize);
 		var length = this.children.length;
 		for (var i = 0; i < length; i++) {

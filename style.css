@@ -103,6 +103,10 @@
 	float: left;
 }
 
+.dd-collapse {
+	overflow: hidden;
+}
+
 .dd-splitter {
 	height: 6px;
 }
