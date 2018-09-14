@@ -20,7 +20,6 @@
 	z-index: 16777215;
 }
 
-
 .dd-overlay, .dd-body .dd-cover,
 .dd-floating .dd-frame.dd-active .dd-cover {
 	display: none;
@@ -114,6 +113,15 @@
 	position: relative;
 }
 
+.dd-collapse {
+	position: relative;
+}
+.dd-collapse > .dd-splitter {
+	position: absolute;
+	width:  100%;
+	height: 100%;
+}
+
 
 .dd-main, .dd-sub {
 	position: relative;
@@ -163,17 +171,16 @@
 	height:      28px;
 	line-height: 28px;
 }
-.dd-main .dd-title {
+
+.dd-main .dd-title,
+.dd-main .dd-tab.dd-active.dd-fixed .dd-title,
+.dd-floating .dd-main .dd-tab.dd-active .dd-title {
 	margin-right: 10px;
 	margin-left:  10px;
 }
 
 .dd-main .dd-tab.dd-active .dd-title {
 	margin-right: 24px;
-}
-.dd-main .dd-tab.dd-fixed .dd-title,
-.dd-floating .dd-main .dd-tab.dd-active .dd-title {
-	margin-right: 10px;
 }
 .dd-main .dd-close {
 	width: 20px;

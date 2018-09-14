@@ -231,7 +231,6 @@ var EdgeDef = (function () {
 	return EdgeDef;
 })();
 
-
 var ButtonDef = (function () {
 	
 	function ButtonDef(letter, horizontal, order) {
@@ -403,8 +402,6 @@ var Model = (function () {
 	}
 	var prototype = Model.prototype;
 	
-	var ACTIVE_NAME = NAME_PREFIX + 'active';
-	
 	function indexOf(array, item) {
 		var length = array.length;
 		for (var i = 0; i < length; i++) {
@@ -414,15 +411,6 @@ var Model = (function () {
 	}
 	
 	prototype.tagName = 'div';
-	prototype.bodyRect = false;
-	
-	prototype.parent = null;
-	
-	prototype.onActivate = function () { };
-	prototype.activate = function () {
-		this.onActivate();
-		this.parent.activate();
-	};
 	
 	prototype.setSize = function (width, height) {
 		var style = this.element.style;
@@ -433,6 +421,7 @@ var Model = (function () {
 		var style = this.element.style;
 		style.width = style.height = '';
 	};
+	
 	prototype.setPos = function (top, left) {
 		var style = this.element.style;
 		style.top  = top  + 'px';
@@ -453,11 +442,6 @@ var Model = (function () {
 		this.element.style.left = '';
 	};
 	
-	prototype.getRect = function () {
-		var element = this.bodyRect ? this.body : this.element;
-		return Rect.from(element.getBoundingClientRect());
-	};
-	
 	prototype.applyClass = function () {
 		this.element.className = this.classList.join(' ');
 	};
@@ -474,6 +458,32 @@ var Model = (function () {
 		this.applyClass();
 	};
 	
+	return Model;
+})();
+
+var Control = _(function (Base, base) {
+	
+	function Control(className) {
+		Base.call(this, className);
+	}
+	var prototype = inherit(Control, base);
+	
+	var ACTIVE_NAME = NAME_PREFIX + 'active';
+	
+	prototype.bodyRect = false;
+	prototype.parent = null;
+	
+	prototype.onActivate = function () { };
+	prototype.activate = function () {
+		this.onActivate();
+		this.parent.activate();
+	};
+	
+	prototype.getRect = function () {
+		var element = this.bodyRect ? this.body : this.element;
+		return Rect.from(element.getBoundingClientRect());
+	};
+	
 	prototype.addActiveClass = function () {
 		this.addClass(ACTIVE_NAME);
 	};
@@ -488,40 +498,17 @@ var Model = (function () {
 		return null;
 	};
 	
-	return Model;
-})();
-
-
-var Control = _(function (Base, base) {
-	
-	function Control(className, parent) {
-		Base.call(this, className);
-		
-		this.parent = parent;
-	}
-	var prototype = inherit(Control, base);
-	
-	prototype.hide = function () {
-		this.element.style.display = 'none';
-	};
-	prototype.show = function () {
-		this.element.style.display = '';
-	};
-	
-	prototype.setDisable = function (disable) {
-		this.disable = disable;
-		if (disable) this.hide(); else this.show();
-	};
-	
 	return Control;
 })(Model);
 
 var Draggable = _(function (Base, base) {
 	
 	function Draggable(className, parent) {
-		Base.call(this, className, parent);
-		
+		Base.call(this, className);
 		var self = this;
+		
+		this.parent = parent;
+		
 		function mousedown(event) {
 			var target = event.target;
 			if (target == this || target == self.body) {
@@ -566,6 +553,7 @@ var Draggable = _(function (Base, base) {
 	
 	return Draggable;
 })(Control);
+
 
 var Splitter = _(function (Base, base) {
 	
@@ -796,6 +784,7 @@ var Close = _(function (Base, base) {
 		
 		this.content = content;
 		
+		this.element.title = '';
 		this.body.appendChild($.createTextNode('×'));
 	}
 	var prototype = inherit(Close, base);
@@ -903,18 +892,40 @@ var Edge = _(function (Base, base) {
 })(Draggable);
 
 
-var GuideBase = _(function (Base, base) {
+var GuideControl = _(function (Base, base) {
 	
-	function GuideBase(className, parent, container) {
-		Base.call(this, className, parent, container);
+	function GuideControl(className, container) {
+		Base.call(this, className);
 		
 		this.container = container;
+	}
+	var prototype = inherit(GuideControl, base);
+	
+	prototype.hide = function () {
+		this.element.style.display = 'none';
+	};
+	prototype.show = function () {
+		this.element.style.display = '';
+	};
+	
+	prototype.setDisable = function (disable) {
+		this.disable = disable;
+		if (disable) this.hide(); else this.show();
+	};
+	
+	return GuideControl;
+})(Model);
+
+var GuideBase = _(function (Base, base) {
+	
+	function GuideBase(className, container) {
+		Base.call(this, className, container);
 		
-		this.area = new GuideArea(this);
-		this.top    = new GuideButton(this, ButtonDef.TOP);
-		this.right  = new GuideButton(this, ButtonDef.RIGHT);
-		this.bottom = new GuideButton(this, ButtonDef.BOTTOM);
-		this.left   = new GuideButton(this, ButtonDef.LEFT);
+		this.area = new GuideArea(container);
+		this.top    = new GuideButton(container, ButtonDef.TOP);
+		this.right  = new GuideButton(container, ButtonDef.RIGHT);
+		this.bottom = new GuideButton(container, ButtonDef.BOTTOM);
+		this.left   = new GuideButton(container, ButtonDef.LEFT);
 		
 		this.hide();
 		this.body.appendChild(this.area.element);
@@ -939,13 +950,12 @@ var GuideBase = _(function (Base, base) {
 			if (this.droppable) {
 				this.droppable.onleave();
 			}
+			this.droppable = droppable;
 			if (droppable) {
-				this.droppable = droppable;
 				droppable.onenter();
 				this.enter(droppable);
 				this.area.show();
 			} else {
-				delete this.droppable;
 				this.area.hide();
 			}
 		}
@@ -955,22 +965,27 @@ var GuideBase = _(function (Base, base) {
 		this.setDroppable(null);
 		this.hide();
 	};
+	
 	prototype.drop = function (contents, target) {
 		if (this.droppable) {
 			this.droppable.ondrop(contents, target);
 		}
 		this.onleave();
 	};
+	prototype.ondrop = function () {
+		delete this.droppable;
+		delete this.drag;
+	};
 	
 	return GuideBase;
-})(Control);
+})(GuideControl);
 
 var Guide = _(function (Base, base) {
 	
-	function Guide(parent) {
-		Base.call(this, 'guide', parent, parent);
+	function Guide(container) {
+		Base.call(this, 'guide', container);
 		
-		this.child = new GuidePane(this);
+		this.child = new GuidePane(container);
 		this.body.appendChild(this.child.element);
 	}
 	var prototype = inherit(Guide, base);
@@ -1031,21 +1046,19 @@ var Guide = _(function (Base, base) {
 	};
 	
 	prototype.enter = function (button) {
-		this.area.setOuterArea(
-			button.def, this.container.cRect);
+		this.area.setOuterArea(button.def, this.container.cRect);
 	};
 	
 	prototype.ondrop = function () {
-		this.child.ondrop();
 		var drag = this.drag;
 		if (drag) {
-			delete this.drag;
-			
 			if (drag.target) {
 				this.child.drop(drag.contents, drag.target);
 			}
 			this.drop(drag.contents, this.container);
 		}
+		base.ondrop.call(this);
+		this.child.ondrop();
 		this.container.deleteRect();
 	};
 	
@@ -1054,28 +1067,26 @@ var Guide = _(function (Base, base) {
 
 var GuidePane = _(function (Base, base) {
 	
-	function GuidePane(parent) {
-		Base.call(this, 'guidepane', parent, parent.container);
+	function GuidePane(container) {
+		Base.call(this, 'guidepane', container);
 		
-		this.center = new GuideButton(this, ButtonDef.CENTER);
-		this.guidestrip = new GuideStrip(this);
+		this.center = new GuideButton(container, ButtonDef.CENTER);
+		this.guidestrip = new GuideStrip(container);
 		this.body.appendChild(this.center.element);
 		this.body.appendChild(this.guidestrip.element);
 	}
 	var prototype = inherit(GuidePane, base);
 	
-	function Drag(rect, pane, main) {
-		this.rect = rect;
-		this.pane = pane;
-		this.main = main;
+	function Drag(target, container) {
+		this.target = target;
+		
+		this.rect = target.cRect.of(container.cRect);
+		this.pane = target.parent instanceof Pane;
+		this.main = target instanceof Main;
 	}
 	
 	prototype.onenter = function (target) {
-		var parent = target.parent;
-		var drag = new Drag(
-			target.cRect.of(this.container.cRect),
-			parent instanceof Pane,
-			target instanceof Main);
+		var drag = new Drag(target, this.container);
 		this.drag = drag;
 		
 		this.setRect(drag.rect);
@@ -1087,7 +1098,7 @@ var GuidePane = _(function (Base, base) {
 		this.left  .setPos(c.y, c.x - GuideButton.DIFF);
 		this.center.setPos(c.y, c.x);
 		
-		var frame = parent instanceof Frame;
+		var frame = target.parent instanceof Frame;
 		this.top   .setDisable(frame);
 		this.right .setDisable(frame);
 		this.bottom.setDisable(frame);
@@ -1110,14 +1121,14 @@ var GuidePane = _(function (Base, base) {
 	};
 	
 	prototype.enter = function (droppable) {
-		var target = this.parent.drag.target;
+		var drag = this.drag;
+		var target = drag.target;
 		
 		if (droppable == this.guidestrip) {
 			this.area.setStripArea();
 			droppable.enter(target);
 			return;
 		}
-		var drag = this.drag;
 		var def = droppable.def;
 		if (drag.main) {
 			this.area.setMainArea(def, drag.rect);
@@ -1136,10 +1147,6 @@ var GuidePane = _(function (Base, base) {
 		this.area.setArea(def, drag.rect);
 	};
 	
-	prototype.ondrop = function () {
-		delete this.drag;
-	};
-	
 	prototype.getButton = function (vector) {
 		var button = base.getButton.call(this, vector);
 		if (button) return button;
@@ -1153,10 +1160,8 @@ var GuidePane = _(function (Base, base) {
 
 var GuideDroppable = _(function (Base, base) {
 	
-	function GuideDroppable(className, parent) {
-		Base.call(this, className, parent);
-		
-		this.container = parent.container;
+	function GuideDroppable(className, container) {
+		Base.call(this, className, container);
 	}
 	var prototype = inherit(GuideDroppable, base);
 	
@@ -1168,84 +1173,6 @@ var GuideDroppable = _(function (Base, base) {
 		target.activate();
 		this.container.layout();
 		if (parent instanceof Frame) parent.layout();
-	};
-	
-	prototype.mergeTabs = function (contents, target, index) {
-		var refChild = target.children[index];
-		var length = contents.children.length;
-		for (var i = 0; i < length; i++) {
-			target.insertChild(contents.children[i], refChild);
-		}
-		target.activateChild(contents.active);
-	};
-	
-	return GuideDroppable;
-})(Control);
-
-var GuideButton = _(function (Base, base) {
-	
-	function GuideButton(parent, def) {
-		Base.call(this, 'guidebutton', parent);
-		
-		this.def = def;
-		this.body.appendChild($.createTextNode(def.letter));
-	}
-	var prototype = inherit(GuideButton, base);
-	
-	GuideButton.SIZE   = 40; // px const
-	GuideButton.MARGIN =  3; // px const
-	GuideButton.DIFF = GuideButton.SIZE + GuideButton.MARGIN;
-	
-	var HOVER_NAME = NAME_PREFIX + 'hover';
-	
-	prototype.setPos = function (top, left) {
-		this.rect = new Rect(
-			top, left,
-			GuideButton.SIZE,
-			GuideButton.SIZE);
-		base.setPos.call(this, top, left);
-	};
-	
-	prototype.hitTest = function (vector) {
-		if (this.disable) return false;
-		return this.rect.contains(vector);
-	};
-	
-	prototype.onenter = function () {
-		this.addClass(HOVER_NAME);
-	};
-	prototype.onleave = function () {
-		this.removeClass(HOVER_NAME);
-	};
-	
-	prototype.drop = function (contents, target) {
-		var parent = target.parent;
-		if (this.def == ButtonDef.CENTER) { // タブ追加
-			this.mergeTabs(contents, target, -1);
-			return;
-		} 
-		if (target == this.container) { // 外側
-			this.outer(contents, target, target.child);
-			this.container.updateMinSize();
-			return;
-		}
-		if (target instanceof Main) { // Dock 追加
-			this.dockPane(contents, target, parent);
-			this.container.updateMinSize();
-			return;
-		}
-		if (parent instanceof Pane &&
-			parent.horizontal == this.def.horizontal) {
-			
-			var end = this.def.order ? parent.children.length - 1 : 0;
-			if (target.index == end) {
-				this.splitPane(contents, target, parent);
-			} else {
-				this.insertPane(contents, target, parent);
-			}
-		} else {
-			this.newPane(contents, target, parent);
-		}
 	};
 	
 	prototype.sizeOf = function (layout, divisor) {
@@ -1337,15 +1264,92 @@ var GuideButton = _(function (Base, base) {
 		parent.calcSizes();
 	};
 	
+	prototype.mergeTabs = function (contents, target, index) {
+		var refChild = target.children[index];
+		var length = contents.children.length;
+		for (var i = 0; i < length; i++) {
+			target.insertChild(contents.children[i], refChild);
+		}
+		target.activateChild(contents.active);
+	};
+	
+	return GuideDroppable;
+})(GuideControl);
+
+var GuideButton = _(function (Base, base) {
+	
+	function GuideButton(container, def) {
+		Base.call(this, 'guidebutton', container);
+		
+		this.def = def;
+		this.body.appendChild($.createTextNode(def.letter));
+	}
+	var prototype = inherit(GuideButton, base);
+	
+	GuideButton.SIZE   = 40; // px const
+	GuideButton.MARGIN =  3; // px const
+	GuideButton.DIFF = GuideButton.SIZE + GuideButton.MARGIN;
+	
+	var HOVER_NAME = NAME_PREFIX + 'hover';
+	
+	prototype.setPos = function (top, left) {
+		this.rect = new Rect(top, left,
+			GuideButton.SIZE,
+			GuideButton.SIZE);
+		base.setPos.call(this, top, left);
+	};
+	
+	prototype.hitTest = function (vector) {
+		if (this.disable) return false;
+		return this.rect.contains(vector);
+	};
+	
+	prototype.onenter = function () {
+		this.addClass(HOVER_NAME);
+	};
+	prototype.onleave = function () {
+		this.removeClass(HOVER_NAME);
+	};
+	
+	prototype.drop = function (contents, target) {
+		var parent = target.parent;
+		if (this.def == ButtonDef.CENTER) {
+			this.mergeTabs(contents, target, -1);
+			return;
+		}
+		if (target == this.container) {
+			this.outer(contents, target, target.child);
+			this.container.updateMinSize();
+			return;
+		}
+		if (target instanceof Main) {
+			this.dockPane(contents, target, parent);
+			this.container.updateMinSize();
+			return;
+		}
+		if (parent instanceof Pane &&
+			parent.horizontal == this.def.horizontal) {
+			
+			var end = this.def.order ? parent.children.length - 1 : 0;
+			if (target.index == end) {
+				this.splitPane(contents, target, parent);
+			} else {
+				this.insertPane(contents, target, parent);
+			}
+		} else {
+			this.newPane(contents, target, parent);
+		}
+	};
+	
 	return GuideButton;
 })(GuideDroppable);
 
 var GuideStrip = _(function (Base, base) {
 	
-	function GuideStrip(parent) {
-		Base.call(this, 'guidestrip', parent);
+	function GuideStrip(container) {
+		Base.call(this, 'guidestrip', container);
 		
-		this.area = new GuideArea(this);
+		this.area = new GuideArea(container);
 		this.body.appendChild(this.area.element);
 	}
 	var prototype = inherit(GuideStrip, base);
@@ -1386,8 +1390,8 @@ var GuideStrip = _(function (Base, base) {
 
 var GuideArea = _(function (Base, base) {
 	
-	function GuideArea(parent) {
-		Base.call(this, 'guidearea', parent);
+	function GuideArea(container) {
+		Base.call(this, 'guidearea', container);
 		
 		this.hide();
 	}
@@ -1445,7 +1449,7 @@ var GuideArea = _(function (Base, base) {
 	};
 	
 	return GuideArea;
-})(Control);
+})(GuideControl);
 
 
 var Layout = _(function (Base, base) {
@@ -1470,7 +1474,7 @@ var Layout = _(function (Base, base) {
 	};
 	
 	return Layout;
-})(Model);
+})(Control);
 
 var Single = _(function (Base, base) {
 	
@@ -1590,7 +1594,6 @@ var Multiple = _(function (Base, base) {
 	return Multiple;
 })(Layout);
 
-
 var Activator = _(function (Base, base) {
 	
 	function Activator(className) {
@@ -1655,12 +1658,11 @@ var DockBase = _(function (Base, base) {
 
 var Container = _(function (Base, base) {
 	
-	var FLOATING_NAME = NAME_PREFIX + 'floating';
 	var DRAGGING_NAME = NAME_PREFIX + 'dragging';
+	var FLOATING_NAME = NAME_PREFIX + 'floating';
 	
 	function Container(element) {
 		Base.call(this, 'container');
-		
 		var self = this;
 		
 		this.contents = {};
@@ -2131,13 +2133,8 @@ var PaneBase = _(function (Base, base) {
 	
 	prototype.drag = null;
 	
-	prototype.replaceChild = function (child, oldChild) {
-		delete oldChild.parent;
-		child.parent = this;
-		this.children.splice(oldChild.index, 1, child);
-		child.index = oldChild.index;
-		
-		this.body.replaceChild(child.element, oldChild.element);
+	prototype.onSplitterDrop = function () {
+		delete this.drag;
 	};
 	
 	prototype.appendSplitter = function () {
@@ -2160,6 +2157,15 @@ var PaneBase = _(function (Base, base) {
 			this.splitters[i].index = i;
 		}
 		this.body.insertBefore(splitter.element, refElement);
+	};
+	
+	prototype.replaceChild = function (child, oldChild) {
+		delete oldChild.parent;
+		child.parent = this;
+		this.children.splice(oldChild.index, 1, child);
+		child.index = oldChild.index;
+		
+		this.body.replaceChild(child.element, oldChild.element);
 	};
 	
 	prototype.fromJSON = function (container, json) {
@@ -2196,14 +2202,16 @@ var DockPane = _(function (Base, base) {
 	}
 	var prototype = inherit(DockPane, base);
 	
-	function Drag(dockPane, container) {
+	function Drag(dockpane, container) {
 		this.container = container;
-		var size = this.container.size;
-		var min  = this.container.minSize;
-		var rem = dockPane.horizontal ?
+		
+		var size = container.size;
+		var min  = container.minSize;
+		var rem = dockpane.horizontal ?
 			size.width  - min.width :
 			size.height - min.height;
-		this.maxSize = dockPane.size + rem;
+		
+		this.maxSize = dockpane.size + rem;
 	}
 	
 	prototype.onSplitterDragStart = function (splitter) {
@@ -2234,19 +2242,17 @@ var DockPane = _(function (Base, base) {
 		}
 		return this.order ? -delta : delta;
 	};
-	prototype.onSplitterDrop = function () {
-		delete this.drag;
-	};
 	
-	prototype.merge = function (dockPane) {
-		var i, length = dockPane.children.length;
+	prototype.merge = function (dockpane) {
+		var children = dockpane.children;
+		var i, length = children.length;
 		if (this.order) {
 			for (i = length - 1; i >= 0; i--) {
-				this.prependChild(dockPane.children[i]);
+				this.prependChild(children[i]);
 			}
 		} else {
 			for (i = 0; i < length; i++) {
-				this.appendChild(dockPane.children[i]);
+				this.appendChild(children[i]);
 			}
 		}
 	};
@@ -2312,6 +2318,8 @@ var Pane = _(function (Base, base) {
 	
 	function Pane(horizontal) {
 		Base.call(this, 'pane', horizontal);
+		
+		this.collapse = false;
 	}
 	var prototype = inherit(Pane, base);
 	
@@ -2324,6 +2332,8 @@ var Pane = _(function (Base, base) {
 	};
 	
 	function Drag() { }
+	
+	var COLLAPSE_NAME = NAME_PREFIX + 'collapse';
 	
 	prototype.onSplitterDragStart = function (splitter) {
 		if (this.remSize == 0) {
@@ -2347,19 +2357,28 @@ var Pane = _(function (Base, base) {
 		
 		return delta;
 	};
-	prototype.onSplitterDrop = function () {
-		delete this.drag;
-	};
 	
 	prototype.merge = function (pane, ref) {
-		var length = pane.children.length;
-		this.remSize -= Splitter.SIZE * (length - 1);
-		this.calcSizes();
+		var children = pane.children;
+		var i, length = children.length;
+		var child;
 		
-		for (var i = 0; i < length; i++) {
-			var child = pane.children[i];
-			child.size = pane.sizes[i] / this.remSize;
-			this.insertChild(child, ref);
+		this.remSize -= pane.collapse ?
+			this.sizes[ref.index] : Splitter.SIZE * (length - 1);
+		if (this.remSize) {
+			this.calcSizes();
+			var sizes = pane.sizes;
+			for (i = 0; i < length; i++) {
+				child = children[i];
+				child.size = sizes[i] / this.remSize;
+				this.insertChild(child, ref);
+			}
+		} else {
+			for (i = 0; i < length; i++) {
+				child = children[i];
+				child.size *= ref.size;
+				this.insertChild(child, ref);
+			}
 		}
 		this.removeChild(ref, true);
 	};
@@ -2392,18 +2411,26 @@ var Pane = _(function (Base, base) {
 		if (l) {
 			var li = index == 0 ? 0 : index - 1;
 			var ri = index == l ? l - 1 : index;
+			var cl = this.children[li];
+			var cr = this.children[ri];
 			
-			var size = this.sizes[index] + Splitter.SIZE;
-			var ls = this.children[li].size;
-			var rs = this.children[ri].size;
+			var size = this.collapse ? child.size :
+				this.sizes[index] + Splitter.SIZE;
+			var ls = cl.size;
+			var rs = cr.size;
 			var sum = ls + rs;
 			if (sum == 0.) { sum = 1.; ls = rs = .5; }
 			
-			this.remSize += Splitter.SIZE;
-			this.sizes.splice(index, 1);
-			this.sizes[li] += size * ls / sum;
-			this.sizes[ri] += size * rs / sum;
-			this.calcSizes();
+			if (this.collapse) {
+				cl.size += size * ls / sum;
+				cr.size += size * rs / sum;
+			} else {
+				this.remSize += Splitter.SIZE;
+				this.sizes.splice(index, 1);
+				this.sizes[li] += size * ls / sum;
+				this.sizes[ri] += size * rs / sum;
+				this.calcSizes();
+			}
 		} else {
 			this.parent.removeChild(this, false);
 		}
@@ -2425,7 +2452,19 @@ var Pane = _(function (Base, base) {
 	};
 	
 	prototype.divideSizes = function (size) {
-		this.remSize = size < 0 ? 0 : size;
+		if (size < 0) {
+			this.remSize = 0;
+			if (!this.collapse) {
+				this.collapse = true;
+				this.addClass(COLLAPSE_NAME);
+			}
+		} else {
+			this.remSize = size;
+			if (this.collapse) {
+				this.collapse = false;
+				this.removeClass(COLLAPSE_NAME);
+			}
+		}
 		var division = new Division(this.remSize);
 		var length = this.children.length;
 		for (var i = 0; i < length; i++) {
@@ -2466,8 +2505,8 @@ var Contents = _(function (Base, base) {
 	
 	function Contents(className) {
 		Base.call(this, className);
-		
 		var self = this;
+		
 		this.tabstrip = new TabStrip(this);
 		
 		// DOM
@@ -2746,7 +2785,6 @@ var Content = _(function (Base, base) {
 	
 	function Content(iframe, options) {
 		Base.call(this, 'content');
-		
 		var self = this;
 		
 		this.iframe = iframe;
@@ -2758,12 +2796,10 @@ var Content = _(function (Base, base) {
 		}
 		
 		var t = Option.get(options, 'title');
-		this.title = t ? t.value :
-			iframe.getAttribute(TITLE_NAME);
+		this.title = t ? t.value : iframe.getAttribute(TITLE_NAME);
 		
 		var f = Option.get(options, 'fixed');
-		var fixed = f ? f.value :
-			iframe.hasAttribute(FIXED_NAME);
+		var fixed = f ? f.value : iframe.hasAttribute(FIXED_NAME);
 		
 		this.hidden = true;
 		
