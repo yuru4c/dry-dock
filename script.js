@@ -505,7 +505,6 @@ var Draggable = _(function (Base, base) {
 	
 	function Draggable(className, parent) {
 		Base.call(this, className);
-		
 		var self = this;
 		
 		this.parent = parent;
@@ -570,9 +569,6 @@ var Splitter = _(function (Base, base) {
 	
 	prototype.onmousedown = function () {
 		base.onmousedown.call(this);
-		if (this.parent instanceof Pane) {
-			if (this.parent.collapse) return;
-		}
 		this.addGrabbingClass();
 	};
 	prototype.ondragstart = function () {
@@ -788,6 +784,7 @@ var Close = _(function (Base, base) {
 		
 		this.content = content;
 		
+		this.element.title = '';
 		this.body.appendChild($.createTextNode('×'));
 	}
 	var prototype = inherit(Close, base);
@@ -1296,8 +1293,7 @@ var GuideButton = _(function (Base, base) {
 	var HOVER_NAME = NAME_PREFIX + 'hover';
 	
 	prototype.setPos = function (top, left) {
-		this.rect = new Rect(
-			top, left,
+		this.rect = new Rect(top, left,
 			GuideButton.SIZE,
 			GuideButton.SIZE);
 		base.setPos.call(this, top, left);
@@ -1317,16 +1313,16 @@ var GuideButton = _(function (Base, base) {
 	
 	prototype.drop = function (contents, target) {
 		var parent = target.parent;
-		if (this.def == ButtonDef.CENTER) { // タブ追加
+		if (this.def == ButtonDef.CENTER) {
 			this.mergeTabs(contents, target, -1);
 			return;
-		} 
-		if (target == this.container) { // 外側
+		}
+		if (target == this.container) {
 			this.outer(contents, target, target.child);
 			this.container.updateMinSize();
 			return;
 		}
-		if (target instanceof Main) { // Dock 追加
+		if (target instanceof Main) {
 			this.dockPane(contents, target, parent);
 			this.container.updateMinSize();
 			return;
@@ -1667,7 +1663,6 @@ var Container = _(function (Base, base) {
 	
 	function Container(element) {
 		Base.call(this, 'container');
-		
 		var self = this;
 		
 		this.contents = {};
@@ -2209,11 +2204,13 @@ var DockPane = _(function (Base, base) {
 	
 	function Drag(dockpane, container) {
 		this.container = container;
-		var size = this.container.size;
-		var min  = this.container.minSize;
+		
+		var size = container.size;
+		var min  = container.minSize;
 		var rem = dockpane.horizontal ?
 			size.width  - min.width :
 			size.height - min.height;
+		
 		this.maxSize = dockpane.size + rem;
 	}
 	
@@ -2414,18 +2411,26 @@ var Pane = _(function (Base, base) {
 		if (l) {
 			var li = index == 0 ? 0 : index - 1;
 			var ri = index == l ? l - 1 : index;
+			var cl = this.children[li];
+			var cr = this.children[ri];
 			
-			var size = this.sizes[index] + Splitter.SIZE;
-			var ls = this.children[li].size;
-			var rs = this.children[ri].size;
+			var size = this.collapse ? child.size :
+				this.sizes[index] + Splitter.SIZE;
+			var ls = cl.size;
+			var rs = cr.size;
 			var sum = ls + rs;
 			if (sum == 0.) { sum = 1.; ls = rs = .5; }
 			
-			this.remSize += Splitter.SIZE;
-			this.sizes.splice(index, 1);
-			this.sizes[li] += size * ls / sum;
-			this.sizes[ri] += size * rs / sum;
-			this.calcSizes();
+			if (this.collapse) {
+				cl.size += size * ls / sum;
+				cr.size += size * rs / sum;
+			} else {
+				this.remSize += Splitter.SIZE;
+				this.sizes.splice(index, 1);
+				this.sizes[li] += size * ls / sum;
+				this.sizes[ri] += size * rs / sum;
+				this.calcSizes();
+			}
 		} else {
 			this.parent.removeChild(this, false);
 		}
@@ -2500,8 +2505,8 @@ var Contents = _(function (Base, base) {
 	
 	function Contents(className) {
 		Base.call(this, className);
-		
 		var self = this;
+		
 		this.tabstrip = new TabStrip(this);
 		
 		// DOM
@@ -2780,7 +2785,6 @@ var Content = _(function (Base, base) {
 	
 	function Content(iframe, options) {
 		Base.call(this, 'content');
-		
 		var self = this;
 		
 		this.iframe = iframe;
@@ -2792,12 +2796,10 @@ var Content = _(function (Base, base) {
 		}
 		
 		var t = Option.get(options, 'title');
-		this.title = t ? t.value :
-			iframe.getAttribute(TITLE_NAME);
+		this.title = t ? t.value : iframe.getAttribute(TITLE_NAME);
 		
 		var f = Option.get(options, 'fixed');
-		var fixed = f ? f.value :
-			iframe.hasAttribute(FIXED_NAME);
+		var fixed = f ? f.value : iframe.hasAttribute(FIXED_NAME);
 		
 		this.hidden = true;
 		
