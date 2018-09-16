@@ -323,12 +323,38 @@ var Pointer = (function () {
 	}
 	var prototype = Pointer.prototype;
 	
-	prototype.deleteContainer = function () {
-		delete this.dragging.container;
-	};
+	var THRESHOLD = 6 * 6; // const
+	
 	prototype.setDragging = function (draggable) {
 		draggable.container = this.container;
 		this.dragging = draggable;
+	};
+	prototype.deleteContainer = function () {
+		delete this.dragging.container;
+	};
+	
+	prototype.mousemove = function (event) {
+		var point = Vector.from(event);
+		if (this.hardDrag) {
+			var sq = point.minus(this.dragStart).square();
+			if (sq < THRESHOLD) return;
+			this.hardDrag = false;
+		}
+		var diff = point.minus(this.point);
+		this.point = point;
+		
+		if (this.firstDrag) {
+			this.dragging.ondragstart();
+			this.firstDrag = false;
+		}
+		var sumDiff = this.dragDiff.plus(diff);
+		var resDiff = this.dragging.ondrag(sumDiff);
+		this.dragDiff = resDiff ?
+			sumDiff.minus(resDiff) : Vector.ZERO;
+	};
+	prototype.mouseup = function () {
+		this.dragging.ondrop();
+		this.deleteContainer();
 	};
 	
 	return Pointer;
@@ -402,10 +428,10 @@ var Model = (function () {
 	}
 	var prototype = Model.prototype;
 	
-	function indexOf(array, item) {
-		var length = array.length;
+	function indexOf(classList, className) {
+		var length = classList.length;
 		for (var i = 0; i < length; i++) {
-			if (array[i] === item) return i;
+			if (classList[i] == className) return i;
 		}
 		return -1;
 	}
@@ -516,6 +542,7 @@ var Draggable = _(function (Base, base) {
 				else {
 					var container = self.getContainer();
 					container.mousedown(event, self);
+					self.onmousedown();
 				}
 				return false;
 			}
@@ -524,8 +551,6 @@ var Draggable = _(function (Base, base) {
 		this.element.ontouchstart = toTouch(mousedown);
 	}
 	var prototype = inherit(Draggable, base);
-	
-	Draggable.THRESHOLD = 6 * 6;
 	
 	var GRABBING_NAME = NAME_PREFIX + 'grabbing';
 	
@@ -1620,9 +1645,9 @@ var Activator = _(function (Base, base) {
 	
 	prototype.activateChild = function (child) {
 		if (child == this.active) return;
-		if (this.active) this.active.deactivating();
+		if (this.active) this.active.deactivation();
 		this.active = child;
-		child.activating();
+		child.activation();
 	};
 	
 	return Activator;
@@ -1698,26 +1723,7 @@ var Container = _(function (Base, base) {
 		element.appendChild(this.element);
 		
 		this.mousemove = function (event) {
-			var pointer = self.pointer;
-			
-			var point = Vector.from(event);
-			if (pointer.hardDrag) {
-				var sq = point.minus(pointer.dragStart).square();
-				if (sq < Draggable.THRESHOLD) return;
-				pointer.hardDrag = false;
-			}
-			var diff = point.minus(pointer.point);
-			pointer.point = point;
-			
-			var dragging = pointer.dragging;
-			if (pointer.firstDrag) {
-				dragging.ondragstart();
-				pointer.firstDrag = false;
-			}
-			var sumDiff = pointer.dragDiff.plus(diff);
-			var resDiff = dragging.ondrag(sumDiff);
-			pointer.dragDiff = resDiff ?
-				sumDiff.minus(resDiff) : Vector.ZERO;
+			self.pointer.mousemove(event);
 		};
 		this.mouseup = function () {
 			this.onmousemove = null;
@@ -1725,9 +1731,7 @@ var Container = _(function (Base, base) {
 			this.ontouchmove = null;
 			this.ontouchend  = null;
 			
-			var pointer = self.pointer;
-			pointer.dragging.ondrop();
-			pointer.deleteContainer();
+			self.pointer.mouseup();
 			delete self.pointer;
 			
 			self.removeClass(DRAGGING_NAME);
@@ -1754,7 +1758,6 @@ var Container = _(function (Base, base) {
 		this.element.onmouseup   = this.mouseup;
 		this.element.ontouchmove = this.touchmove;
 		this.element.ontouchend  = this.touchend;
-		draggable.onmousedown();
 	};
 	
 	prototype.calcRect = function () {
@@ -1973,10 +1976,10 @@ var Frame = _(function (Base, base) {
 	prototype.onActivate = function () {
 		this.parent.activateChild(this);
 	};
-	prototype.activating = function () {
+	prototype.activation = function () {
 		this.addActiveClass();
 	};
-	prototype.deactivating = function () {
+	prototype.deactivation = function () {
 		this.removeActiveClass();
 	};
 	
@@ -2172,19 +2175,18 @@ var PaneBase = _(function (Base, base) {
 		var length = json.children.length;
 		for (var i = 0; i < length; i++) {
 			var child = json.children[i];
+			var layout;
 			switch (child.type) {
 				case Pane.TYPE:
-				var newPane = Pane.fromJSON(container, child);
-				newPane.size = child.size;
-				this.appendChild(newPane);
+				layout = Pane.fromJSON(container, child);
 				break;
 				
 				case Sub.TYPE:
-				var newSub = Sub.fromJSON(container, child);
-				newSub.size = child.size;
-				this.appendChild(newSub);
+				layout = Sub.fromJSON(container, child);
 				break;
 			}
+			layout.size = child.size;
+			this.appendChild(layout);
 		}
 	};
 	
@@ -2571,7 +2573,7 @@ var Contents = _(function (Base, base) {
 	prototype.deactivateAll = function () {
 		var length = this.children.length;
 		for (var i = 0; i < length; i++) {
-			this.children[i].deactivating();
+			this.children[i].deactivation();
 		}
 	};
 	
@@ -2759,8 +2761,8 @@ var Sub = _(function (Base, base) {
 	};
 	prototype.setTabSize = function () {
 		if (this.detached) return;
-		this.tabstrip.onresize(this.width,
-			TAB_SIZE, TabStrip.HEIGHT);
+		this.tabstrip.onresize(
+			this.width, TAB_SIZE, TabStrip.HEIGHT);
 	};
 	
 	prototype.toJSON = function () {
@@ -2866,12 +2868,12 @@ var Content = _(function (Base, base) {
 	prototype.onActivate = function () {
 		this.parent.activateChild(this);
 	};
-	prototype.activating = function () {
+	prototype.activation = function () {
 		this.addActiveClass();
 		this.tab.addActiveClass();
 		this.setHidden(false);
 	};
-	prototype.deactivating = function () {
+	prototype.deactivation = function () {
 		this.removeActiveClass();
 		this.tab.removeActiveClass();
 		this.setHidden(true);
@@ -2886,7 +2888,7 @@ var Content = _(function (Base, base) {
 				}
 			} catch (_) { }
 		}
-		this.deactivating();
+		this.deactivation();
 		this.parent.removeChild(this);
 	};
 	
@@ -2949,6 +2951,7 @@ return (function () {
 				size.width  - rect.right(),
 				size.height - rect.bottom()
 			).max(Vector.ZERO).min(DIFF);
+			
 			if (diff.equals(Vector.ZERO)) break;
 			rect = rect.plus(diff);
 		}
