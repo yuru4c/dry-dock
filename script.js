@@ -536,16 +536,16 @@ var Draggable = _(function (Base, base) {
 		
 		this.parent = parent;
 		
-		function mousedown(event) {
-			var ie = !event;
-			if (ie) event = window.event;
-			var target = event.target || event.srcElement;
+		function mousedown(e) {
+			var ie = !e;
+			if (ie) e = event;
+			var target = e.target || e.srcElement;
 			if (target == this || target == self.body) {
 				
-				if (event.button > ie) self.activate();
+				if (e.button > ie) self.activate();
 				else {
 					var container = self.getContainer();
-					container.mousedown(event, self);
+					container.mousedown(e, self);
 					self.onmousedown();
 				}
 				return false;
@@ -1723,9 +1723,9 @@ var Container = _(function (Base, base) {
 		this.element.appendChild(this.floats.element);
 		this.element.appendChild(this.guide.element);
 		this.element.appendChild(this.overlay);
-		this.element.onmousedown = function (event) {
-			event = event || window.event;
-			var target = event.target || event.srcElement;
+		this.element.onmousedown = function (e) {
+			if (!e) e = event;
+			var target = e.target || e.srcElement;
 			if (target == this) {
 				self.activate();
 				return false;
@@ -1733,8 +1733,8 @@ var Container = _(function (Base, base) {
 		};
 		element.appendChild(this.element);
 		
-		this.mousemove = function (event) {
-			self.pointer.mousemove(event || window.event);
+		this.mousemove = function (e) {
+			self.pointer.mousemove(e || event);
 			return false;
 		};
 		this.mouseup = function () {
