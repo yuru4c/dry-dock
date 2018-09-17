@@ -247,6 +247,9 @@ var ButtonDef = (function () {
 	ButtonDef.LEFT   = new ButtonDef('←', true,  false);
 	ButtonDef.CENTER = new ButtonDef('＋', false, false);
 	
+	ButtonDef.MAIN_DIV  = 3;
+	ButtonDef.OUTER_DIV = 5;
+	
 	function Diff(i, diff) {
 		this.i = i;
 		this.diff = diff;
@@ -292,8 +295,7 @@ var ButtonPos = (function () {
 	function ButtonPos(rect) {
 		this.c = ButtonPos.center(rect);
 		this.f = new Vector(
-			GuideButton.MARGIN,
-			GuideButton.MARGIN);
+			GuideButton.MARGIN, GuideButton.MARGIN);
 		this.l = new Vector(
 			rect.width  - GuideButton.DIFF,
 			rect.height - GuideButton.DIFF);
@@ -454,6 +456,7 @@ var Model = (function () {
 		style.top  = top  + 'px';
 		style.left = left + 'px';
 	};
+	
 	prototype.setRect = function (rect) {
 		this.setPos (rect.top,   rect.left);
 		this.setSize(rect.width, rect.height);
@@ -519,10 +522,7 @@ var Control = _(function (Base, base) {
 	};
 	
 	prototype.getContainer = function () {
-		if (this.parent) {
-			return this.parent.getContainer();
-		}
-		return null;
+		return this.parent ? this.parent.getContainer() : null;
 	};
 	
 	return Control;
@@ -544,8 +544,7 @@ var Draggable = _(function (Base, base) {
 				
 				if (e.button > ie) self.activate();
 				else {
-					var container = self.getContainer();
-					container.mousedown(e, self);
+					self.getContainer().mousedown(e, self);
 					self.onmousedown();
 				}
 				return false;
@@ -604,8 +603,7 @@ var Splitter = _(function (Base, base) {
 		this.parent.onSplitterDragStart(this);
 	};
 	prototype.ondrag = function (delta) {
-		var d = this.parent.onSplitterDrag(
-			this.index,
+		var d = this.parent.onSplitterDrag(this.index,
 			this.parent.horizontal ? delta.x : delta.y);
 		
 		if (d) this.container.layout();
@@ -1228,7 +1226,7 @@ var GuideDroppable = _(function (Base, base) {
 	};
 	
 	prototype.outer = function (contents, container, child) {
-		contents.size = this.sizeOf(child, 5);
+		contents.size = this.sizeOf(child, ButtonDef.OUTER_DIV);
 		if (this.test(child)) {
 			if (this.def.order) {
 				child.after.appendChild(contents);
@@ -1241,7 +1239,7 @@ var GuideDroppable = _(function (Base, base) {
 		}
 	};
 	prototype.dockPane = function (contents, target, parent) {
-		contents.size = this.sizeOf(target, 3);
+		contents.size = this.sizeOf(target, ButtonDef.MAIN_DIV);
 		if (this.test(parent)) {
 			if (this.def.order) {
 				parent.after.prependChild(contents);
@@ -1300,9 +1298,10 @@ var GuideDroppable = _(function (Base, base) {
 	
 	prototype.mergeTabs = function (contents, target, index) {
 		var refChild = target.children[index];
-		var length = contents.children.length;
+		var children = contents.children;
+		var length = children.length;
 		for (var i = 0; i < length; i++) {
-			target.insertChild(contents.children[i], refChild);
+			target.insertChild(children[i], refChild);
 		}
 		target.activateChild(contents.active);
 	};
@@ -1328,8 +1327,7 @@ var GuideButton = _(function (Base, base) {
 	
 	prototype.setPos = function (top, left) {
 		this.rect = new Rect(top, left,
-			GuideButton.SIZE,
-			GuideButton.SIZE);
+			GuideButton.SIZE, GuideButton.SIZE);
 		base.setPos.call(this, top, left);
 	};
 	
@@ -1450,12 +1448,12 @@ var GuideArea = _(function (Base, base) {
 	};
 	prototype.setMainArea = function (def, rect) {
 		var size = def.sizeOf(rect);
-		this.set(def, '0', size - size / 3);
+		this.set(def, '0', size - size / ButtonDef.MAIN_DIV);
 	};
 	prototype.setOuterArea = function (def, rect) {
 		var size = def.sizeOf(rect) - Container.M2;
 		this.set(def, Container.MP,
-			size - size / 5 + Container.MARGIN);
+			size - size / ButtonDef.OUTER_DIV + Container.MARGIN);
 	};
 	
 	prototype.setInsertArea = function (def, target) {
@@ -2350,11 +2348,11 @@ var Pane = _(function (Base, base) {
 	var COLLAPSE_NAME = NAME_PREFIX + 'collapse';
 	
 	prototype.onSplitterDragStart = function (splitter) {
-		if (this.remSize == 0) {
+		if (this.remSize) {
+			this.calcSizes();
+		} else {
 			this.drag = new Drag();
-			return;
 		}
-		this.calcSizes();
 	};
 	prototype.onSplitterDrag = function (i, delta) {
 		if (this.drag) return;
@@ -2565,8 +2563,10 @@ var Contents = _(function (Base, base) {
 		this.children.splice(index, 1);
 		this.children.splice(to, 0, child);
 		
-		var length = this.children.length;
-		for (var i = Math.min(index, to); i < length; i++) {
+		if (index > to) {
+			var tmp = index; index = to; to = tmp;
+		}
+		for (var i = index; i <= to; i++) {
 			this.children[i].index = i;
 		}
 	};
@@ -2624,9 +2624,7 @@ var Main = _(function (Base, base) {
 		return main;
 	};
 	
-	var MIN_SIZE = new Size(
-		TabStrip.MAIN,
-		TabStrip.MAIN);
+	var MIN_SIZE = new Size(TabStrip.MAIN, TabStrip.MAIN);
 	var TAB_SIZE = 120; // px const
 	
 	prototype.getMinSize = function () {
@@ -2950,16 +2948,13 @@ return (function () {
 	DryDock.Sub = Sub;
 	DryDock.Content = Content;
 	
-	var DIFF = new Vector(
-		TabStrip.HEIGHT,
-		TabStrip.HEIGHT);
+	var DIFF = new Vector(TabStrip.HEIGHT, TabStrip.HEIGHT);
 	
 	function c(size, rect, dimension) {
 		return (size[dimension] - rect[dimension]) / 2;
 	}
 	
-	function test(floats, rect) {
-		var children = floats.children;
+	function test(children, rect) {
 		var length = children.length;
 		for (var i = 0; i < length; i++) {
 			var child = children[i];
@@ -2967,8 +2962,8 @@ return (function () {
 		}
 		return false;
 	}
-	function move(floats, rect, size) {
-		while (test(floats, rect)) {
+	function move(children, rect, size) {
+		while (test(children, rect)) {
 			var diff = new Vector(
 				size.width  - rect.right(),
 				size.height - rect.bottom()
@@ -3003,7 +2998,7 @@ return (function () {
 			if (r.top  == null) r.top  = c(s, r, 'height');
 			if (r.left == null) r.left = c(s, r, 'width');
 			
-			r = move(this.layout.floats,
+			r = move(this.layout.floats.children,
 				r.round(), s.shrink(Edge.SIZE));
 			
 			var sub = new Sub();
