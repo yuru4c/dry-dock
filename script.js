@@ -56,8 +56,8 @@ var Vector = (function () {
 	
 	Vector.from = function (event) {
 		return new Vector(
-			Math.floor(event.clientX),
-			Math.floor(event.clientY));
+			event.clientX,
+			event.clientY);
 	};
 	
 	prototype.plus  = function (vector) {
@@ -85,6 +85,12 @@ var Vector = (function () {
 		return new Vector(
 			Math.max(this.x, vector.x),
 			Math.max(this.y, vector.y));
+	};
+	
+	prototype.floor = function () {
+		return new Vector(
+			Math.floor(this.x),
+			Math.floor(this.y));
 	};
 	
 	prototype.square = function () {
@@ -378,53 +384,15 @@ var Option = (function () {
 	return Option;
 })();
 
-var Division = (function () {
-	
-	function Division(value) {
-		this.value = value;
-		this.sum   = 0;
-		this.rounds = [];
-		this.values = [];
-	}
-	var prototype = Division.prototype;
-	
-	function Round(index, value) {
-		this.index = index;
-		this.value = value;
-	}
-	function compare(a, b) {
-		return b.value - a.value || b.index - a.index;
-	}
-	
-	prototype.set = function (i, prop) {
-		var value = this.value * prop;
-		var floor = Math.floor(value);
-		
-		this.sum      += floor;
-		this.values[i] = floor;
-		this.rounds[i] = new Round(i, value - floor);
-	};
-	prototype.get = function () {
-		this.rounds.sort(compare);
-		var diff = this.value - this.sum;
-		for (var i = 0; i < diff; i++) {
-			this.values[this.rounds[i].index]++;
-		}
-		return this.values;
-	};
-	
-	return Division;
-})();
-
 
 var Model = (function () {
 	
 	function Model(className) {
-		className = NAME_PREFIX + className;
-		this.classList = [className];
+		var name = NAME_PREFIX + className;
+		this.classList = [name];
 		
 		this.element = $.createElement(this.tagName);
-		this.element.className = className;
+		this.element.className = name;
 		
 		this.body = this.element;
 	}
@@ -675,26 +643,12 @@ var TabStrip = _(function (Base, base) {
 	};
 	
 	prototype.onresize = function (size, tabSize, margin) {
-		var length = this.tabs.length, rem = 0;
-		size = margin < size ? size - margin : 0;
-		
-		if (tabSize * length > size) {
-			this.tabSize = size / length;
-			if (margin) {
-				tabSize = this.tabSize;
-			} else {
-				tabSize = Math.floor(this.tabSize);
-				rem = size % length;
-			}
-		} else {
-			this.tabSize = tabSize;
-		}
-		this.setEachSize(0, rem, tabSize + 1);
-		this.setEachSize(rem, length, tabSize);
-	};
-	prototype.setEachSize = function (begin, end, size) {
-		for (var i = begin; i < end; i++) {
-			this.tabs[i].setWidth(size);
+		var length = this.tabs.length;
+		var rem = margin < size ? size - margin : 0;
+		this.tabSize = tabSize * length > rem ?
+			rem / length : tabSize;
+		for (var i = 0; i < length; i++) {
+			this.tabs[i].setWidth(this.tabSize);
 		}
 	};
 	
@@ -767,7 +721,7 @@ var Tab = _(function (Base, base) {
 		pointer.deleteContainer();
 		pointer.setDragging(sub.tabstrip);
 		sub.onStripDragStart();
-		return sub.openFloat(container, rect, drag.diff);
+		return sub.openFloat(container, rect, drag.diff.floor());
 	};
 	
 	prototype.ondragstart = function () {
@@ -826,7 +780,7 @@ var Close = _(function (Base, base) {
 		this.addActiveClass();
 		blur();
 	};
-	prototype.ondrag = function (delta) {
+	prototype.ondrag = function () {
 		var drag = this.drag;
 		var point = this.container.pointer.point;
 		
@@ -872,7 +826,7 @@ var Edge = _(function (Base, base) {
 	Edge.SIZE = 2; // px const
 	
 	prototype.ondrag = function (delta) {
-		var dx = delta.x, dy = delta.y;
+		var d = delta.floor();
 		
 		var rect = this.parent.rect;
 		var mw = rect.width  - TabStrip.HEIGHT;
@@ -881,34 +835,34 @@ var Edge = _(function (Base, base) {
 		switch (this.v) {
 			case EdgeDef.TOP:
 			var t = Edge.SIZE - rect.top;
-			if (dy > mh) dy = mh;
-			if (dy <  t) dy =  t;
-			rect.top    += dy;
-			rect.height -= dy;
+			if (d.y > mh) d.y = mh;
+			if (d.y <  t) d.y =  t;
+			rect.top    += d.y;
+			rect.height -= d.y;
 			break;
 			
 			case EdgeDef.BOTTOM:
-			if (dy < -mh) dy = -mh;
-			rect.height += dy;
+			if (d.y < -mh) d.y = -mh;
+			rect.height += d.y;
 			break;
 		}
 		switch (this.h) {
 			case EdgeDef.LEFT:
-			if (dx > mw) dx = mw;
-			rect.left  += dx;
-			rect.width -= dx;
+			if (d.x > mw) d.x = mw;
+			rect.left  += d.x;
+			rect.width -= d.x;
 			break;
 			
 			case EdgeDef.RIGHT:
 			var r = Frame.MIN_R - rect.right();
-			if (dx < -mw) dx = -mw;
-			if (dx <   r) dx =   r;
-			rect.width += dx;
+			if (d.x < -mw) d.x = -mw;
+			if (d.x <   r) d.x =   r;
+			rect.width += d.x;
 			break;
 		}
 		this.parent.layout();
 		
-		return new Vector(dx, dy);
+		return d;
 	};
 	
 	return Edge;
@@ -2222,25 +2176,26 @@ var DockPane = _(function (Base, base) {
 	};
 	prototype.onSplitterDrag = function (i, delta) {
 		var child = this.children[i];
-		if (this.order) delta = -delta;
+		var d = Math.floor(delta);
+		if (this.order) d = -d;
 		
-		if (delta < -child.size) delta = -child.size;
+		if (d < -child.size) d = -child.size;
 		var drag = this.drag;
 		if (drag) {
-			if (delta < -this.size) delta = this.size;
+			if (d < -this.size) d = this.size;
 			var rem = drag.maxSize - this.size;
-			if (rem < delta) delta = rem;
-			this.size  += delta;
-			child.size += delta;
+			if (rem < d) d = rem;
+			this.size  += d;
+			child.size += d;
 			
 			drag.container.updateMinSize();
 		} else {
 			var next = this.children[this.order ? i - 1 : i + 1];
-			if (delta > next.size) delta = next.size;
-			child.size += delta;
-			next .size -= delta;
+			if (d > next.size) d = next.size;
+			child.size += d;
+			next .size -= d;
 		}
-		return this.order ? -delta : delta;
+		return this.order ? -d : d;
 	};
 	
 	prototype.merge = function (dockpane) {
@@ -2319,6 +2274,7 @@ var Pane = _(function (Base, base) {
 	function Pane(horizontal) {
 		Base.call(this, 'pane', horizontal);
 		
+		this.sizes = [];
 		this.collapse = false;
 	}
 	var prototype = inherit(Pane, base);
@@ -2335,7 +2291,7 @@ var Pane = _(function (Base, base) {
 	
 	var COLLAPSE_NAME = NAME_PREFIX + 'collapse';
 	
-	prototype.onSplitterDragStart = function (splitter) {
+	prototype.onSplitterDragStart = function () {
 		if (this.remSize) {
 			this.calcSizes();
 		} else {
@@ -2465,12 +2421,11 @@ var Pane = _(function (Base, base) {
 				this.removeClass(COLLAPSE_NAME);
 			}
 		}
-		var division = new Division(this.remSize);
 		var length = this.children.length;
+		this.sizes.length = length;
 		for (var i = 0; i < length; i++) {
-			division.set(i, this.children[i].size);
+			this.sizes[i] = this.remSize * this.children[i].size;
 		}
-		this.sizes = division.get();
 	};
 	prototype.onresize = function (width, height) {
 		this.setSize(width, height);
@@ -2701,12 +2656,12 @@ var Sub = _(function (Base, base) {
 	
 	prototype.openFloat = function (container, rect, delta) {
 		var frame = new Frame(this);
-		delta = max(delta, rect);
-		frame.rect = rect.plus(delta).max(TabStrip.HEIGHT);
+		var d = max(delta, rect);
+		frame.rect = rect.plus(d).max(TabStrip.HEIGHT);
 		
 		container.floats.appendChild(frame);
 		frame.activate();
-		return delta;
+		return d;
 	};
 	
 	prototype.onStripDragStart = function () {
@@ -2715,20 +2670,21 @@ var Sub = _(function (Base, base) {
 	};
 	prototype.onStripDrag = function (delta) {
 		var container = this.tabstrip.container;
+		var d = delta.floor();
 		
 		if (this.parent instanceof Frame) {
-			delta = max(delta, this.parent.rect);
-			this.parent.move(delta);
+			d = max(d, this.parent.rect);
+			this.parent.move(d);
 			
 			container.guide.ondrag();
-			return delta;
+			return d;
 		}
 		
 		var rect = this.getRectOf(container).round();
 		this.parent.removeChild(this, false);
 		container.layout();
 		this.unsetSize();
-		return this.openFloat(container, rect, delta);
+		return this.openFloat(container, rect, d);
 	};
 	prototype.onStripDrop = function () {
 		if (this.detached) {

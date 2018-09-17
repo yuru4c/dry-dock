@@ -122,6 +122,10 @@
 	height: 100%;
 }
 
+.dd-pane.dd-horizontal > :last-child {
+	margin-right: -1px;
+}
+
 
 .dd-main, .dd-sub {
 	position: relative;
@@ -166,6 +170,9 @@
 
 .dd-main .dd-tabstrip {
 	border-bottom: 2px solid;
+}
+.dd-main .dd-tab:last-child {
+	margin-right: -1px;
 }
 .dd-main .dd-tab.dd-active {
 	height:      28px;
