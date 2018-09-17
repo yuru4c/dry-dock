@@ -540,8 +540,7 @@ var Draggable = _(function (Base, base) {
 			if (target == this || target == self.body) {
 				if (event.button) self.activate();
 				else {
-					var container = self.getContainer();
-					container.mousedown(event, self);
+					self.getContainer().mousedown(event, self);
 					self.onmousedown();
 				}
 				return false;
@@ -2552,7 +2551,6 @@ var Contents = _(function (Base, base) {
 		this.children.splice(index, 1);
 		this.children.splice(to, 0, child);
 		
-		var length = this.children.length;
 		if (index > to) {
 			var tmp = index; index = to; to = tmp;
 		}
