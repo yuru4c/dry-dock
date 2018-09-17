@@ -901,6 +901,9 @@ var GuideControl = _(function (Base, base) {
 	}
 	var prototype = inherit(GuideControl, base);
 	
+	GuideControl.HEIGHT_PX = TabStrip.HEIGHT + 'px';
+	GuideControl.MAIN_PX   = TabStrip.MAIN   + 'px';
+	
 	prototype.hide = function () {
 		this.element.style.display = 'none';
 	};
@@ -1125,8 +1128,8 @@ var GuidePane = _(function (Base, base) {
 		var target = drag.target;
 		
 		if (droppable == this.guidestrip) {
-			this.area.setStripArea();
-			droppable.enter(target);
+			this.area.setStripArea(drag.main);
+			droppable.enter(target, drag.main);
 			return;
 		}
 		var def = droppable.def;
@@ -1360,8 +1363,11 @@ var GuideStrip = _(function (Base, base) {
 		this.length  = target.children.length;
 	}
 	
-	prototype.enter = function (target) {
+	prototype.enter = function (target, main) {
 		this.drag = new Drag(target);
+		this.element.style.height = main ?
+			GuideControl.MAIN_PX :
+			GuideControl.HEIGHT_PX;
 	};
 	
 	prototype.onenter = function () {
@@ -1397,7 +1403,7 @@ var GuideArea = _(function (Base, base) {
 	}
 	var prototype = inherit(GuideArea, base);
 	
-	var HEIGHT_PX = TabStrip.HEIGHT + 'px';
+	// var HEIGHT_PX = TabStrip.HEIGHT + 'px';
 	
 	prototype.set = function (def, margin, value) {
 		var px = value + Splitter.SIZE + 'px';
@@ -1442,9 +1448,9 @@ var GuideArea = _(function (Base, base) {
 		this.setLeft(width * index);
 		this.setWidth(width);
 	};
-	prototype.setStripArea = function () {
+	prototype.setStripArea = function (main) {
 		var s = this.element.style;
-		s.top = HEIGHT_PX;
+		s.top = main ? GuideControl.MAIN_PX : GuideControl.HEIGHT_PX;
 		s.right = s.bottom = s.left = '0';
 	};
 	
