@@ -453,7 +453,7 @@ var Model = (function () {
 		for (var i = 1; i < length; i++) {
 			if (classList[i] == className) return i;
 		}
-		return -1;
+		return 0;
 	}
 	
 	prototype._tagName = 'div';
@@ -493,16 +493,16 @@ var Model = (function () {
 		this._element.className = this._classList.join(' ');
 	};
 	prototype.addClass = function (className) {
-		if (indexOf(this._classList, className) == -1) {
-			this._classList.push(className);
-			this.applyClass();
-		}
+		if (indexOf(this._classList, className)) return;
+		this._classList.push(className);
+		this.applyClass();
 	};
 	prototype.removeClass = function (className) {
 		var index = indexOf(this._classList, className);
-		if (index == -1) return;
-		this._classList.splice(index, 1);
-		this.applyClass();
+		if (index) {
+			this._classList.splice(index, 1);
+			this.applyClass();
+		}
 	};
 	
 	return Model;
