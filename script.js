@@ -439,7 +439,7 @@ var Model = (function () {
 		for (var i = 1; i < length; i++) {
 			if (classList[i] == className) return i;
 		}
-		return -1;
+		return 0;
 	}
 	
 	prototype.tagName = 'div';
@@ -479,16 +479,16 @@ var Model = (function () {
 		this.element.className = this.classList.join(' ');
 	};
 	prototype.addClass = function (className) {
-		if (indexOf(this.classList, className) == -1) {
-			this.classList.push(className);
-			this.applyClass();
-		}
+		if (indexOf(this.classList, className)) return;
+		this.classList.push(className);
+		this.applyClass();
 	};
 	prototype.removeClass = function (className) {
 		var index = indexOf(this.classList, className);
-		if (index == -1) return;
-		this.classList.splice(index, 1);
-		this.applyClass();
+		if (index) {
+			this.classList.splice(index, 1);
+			this.applyClass();
+		}
 	};
 	
 	return Model;
