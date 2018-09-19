@@ -87,12 +87,11 @@ var Vector = (function () {
 			Math.max(this.y, vector.y));
 	};
 	
-	prototype.floor = function () {
+	prototype.round = function () {
 		return new Vector(
-			Math.floor(this.x),
-			Math.floor(this.y));
+			Math.round(this.x),
+			Math.round(this.y));
 	};
-	
 	prototype.square = function () {
 		return this.x * this.x +
 		       this.y * this.y;
@@ -354,7 +353,7 @@ var Pointer = (function () {
 			this.dragging.ondragstart();
 			this.first = false;
 		}
-		var sum = this.diff.plus(diff), arg = sum.floor();
+		var sum = this.diff.plus(diff), arg = sum.round();
 		var ret = this.dragging.ondrag(arg);
 		this.diff = sum.minus(ret || arg);
 	};
@@ -380,44 +379,6 @@ var Option = (function () {
 	};
 	
 	return Option;
-})();
-
-var Division = (function () {
-	
-	function Division(value) {
-		this.value = value;
-		this.sum   = 0;
-		this.rounds = [];
-		this.values = [];
-	}
-	var prototype = Division.prototype;
-	
-	function Round(index, value) {
-		this.index = index;
-		this.value = value;
-	}
-	function compare(a, b) {
-		return b.value - a.value || b.index - a.index;
-	}
-	
-	prototype.set = function (i, prop) {
-		var value = this.value * prop;
-		var floor = Math.floor(value);
-		
-		this.sum      += floor;
-		this.values[i] = floor;
-		this.rounds[i] = new Round(i, value - floor);
-	};
-	prototype.get = function () {
-		this.rounds.sort(compare);
-		var diff = this.value - this.sum;
-		for (var i = 0; i < diff; i++) {
-			this.values[this.rounds[i].index]++;
-		}
-		return this.values;
-	};
-	
-	return Division;
 })();
 
 
@@ -679,26 +640,19 @@ var TabStrip = _(function (Base, base) {
 	};
 	
 	prototype.onresize = function (size, tabSize, margin) {
-		var length = this.tabs.length, r = 0;
+		var length = this.tabs.length;
 		var rem = margin < size ? size - margin : 0;
-		
 		if (tabSize * length > rem) {
 			this.tabSize = rem / length;
-			if (margin) {
-				tabSize = this.tabSize;
-			} else {
-				tabSize = Math.floor(this.tabSize);
-				r = rem % length;
-			}
 		} else {
 			this.tabSize = tabSize;
 		}
-		this.set(0, r, tabSize + 1);
-		this.set(r, length, tabSize);
-	};
-	prototype.set = function (begin, end, size) {
-		for (var i = begin; i < end; i++) {
-			this.tabs[i].setWidth(size);
+		var sum = 0, prev = 0;
+		for (var i = 0; i < length; i++) {
+			sum += this.tabSize;
+			var pos = Math.round(sum);
+			this.tabs[i].setWidth(pos - prev);
+			prev = pos;
 		}
 	};
 	
@@ -2323,6 +2277,7 @@ var Pane = _(function (Base, base) {
 	function Pane(horizontal) {
 		Base.call(this, 'pane', horizontal);
 		
+		this.sizes = [];
 		this.collapse = false;
 	}
 	var prototype = inherit(Pane, base);
@@ -2469,12 +2424,16 @@ var Pane = _(function (Base, base) {
 				this.removeClass(COLLAPSE_NAME);
 			}
 		}
-		var division = new Division(this.remSize);
 		var length = this.children.length;
+		this.sizes.length = length;
+		
+		var sum = .0; var prev = 0;
 		for (var i = 0; i < length; i++) {
-			division.set(i, this.children[i].size);
+			sum += this.children[i].size;
+			var pos = Math.round(this.remSize * sum);
+			this.sizes[i] = pos - prev;
+			prev = pos;
 		}
-		this.sizes = division.get();
 	};
 	prototype.onresize = function (width, height) {
 		this.setSize(width, height);
