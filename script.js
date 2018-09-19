@@ -92,12 +92,11 @@ var Vector = (function () {
 			Math.max(this._y, vector._y));
 	};
 	
-	prototype._floor = function () {
+	prototype._round = function () {
 		return new Vector(
-			Math.floor(this._x),
-			Math.floor(this._y));
+			Math.round(this._x),
+			Math.round(this._y));
 	};
-	
 	prototype.square = function () {
 		return this._x * this._x +
 		       this._y * this._y;
@@ -368,7 +367,7 @@ var Pointer = (function () {
 			this.dragging.ondragstart();
 			this._first = false;
 		}
-		var sum = this.diff.plus(diff), arg = sum._floor();
+		var sum = this.diff.plus(diff), arg = sum._round();
 		var ret = this.dragging.ondrag(arg);
 		this.diff = sum.minus(ret || arg);
 	};
@@ -394,44 +393,6 @@ var Option = (function () {
 	};
 	
 	return Option;
-})();
-
-var Division = (function () {
-	
-	function Division(value) {
-		this._value = value;
-		this.sum   = 0;
-		this.rounds = [];
-		this._values = [];
-	}
-	var prototype = Division.prototype;
-	
-	function Round(index, value) {
-		this._index = index;
-		this._value = value;
-	}
-	function compare(a, b) {
-		return b._value - a._value || b._index - a._index;
-	}
-	
-	prototype._set = function (i, prop) {
-		var value = this._value * prop;
-		var floor = Math.floor(value);
-		
-		this.sum      += floor;
-		this._values[i] = floor;
-		this.rounds[i] = new Round(i, value - floor);
-	};
-	prototype._get = function () {
-		this.rounds.sort(compare);
-		var diff = this._value - this.sum;
-		for (var i = 0; i < diff; i++) {
-			this._values[this.rounds[i]._index]++;
-		}
-		return this._values;
-	};
-	
-	return Division;
 })();
 
 
@@ -693,26 +654,19 @@ var TabStrip = _(function (Base, base) {
 	};
 	
 	prototype._onresize = function (size, tabSize, margin) {
-		var length = this.tabs.length, r = 0;
+		var length = this.tabs.length;
 		var rem = margin < size ? size - margin : 0;
-		
 		if (tabSize * length > rem) {
 			this.tabSize = rem / length;
-			if (margin) {
-				tabSize = this.tabSize;
-			} else {
-				tabSize = Math.floor(this.tabSize);
-				r = rem % length;
-			}
 		} else {
 			this.tabSize = tabSize;
 		}
-		this._set(0, r, tabSize + 1);
-		this._set(r, length, tabSize);
-	};
-	prototype._set = function (begin, end, size) {
-		for (var i = begin; i < end; i++) {
-			this.tabs[i].setWidth(size);
+		var sum = 0, prev = 0;
+		for (var i = 0; i < length; i++) {
+			sum += this.tabSize;
+			var pos = Math.round(sum);
+			this.tabs[i].setWidth(pos - prev);
+			prev = pos;
 		}
 	};
 	
@@ -2337,6 +2291,7 @@ var Pane = _(function (Base, base) {
 	function Pane(horizontal) {
 		Base.call(this, 'pane', horizontal);
 		
+		this._sizes = [];
 		this._collapse = false;
 	}
 	var prototype = inherit(Pane, base);
@@ -2483,12 +2438,16 @@ var Pane = _(function (Base, base) {
 				this.removeClass(COLLAPSE_NAME);
 			}
 		}
-		var division = new Division(this.remSize);
 		var length = this._children.length;
+		this._sizes.length = length;
+		
+		var sum = .0; var prev = 0;
 		for (var i = 0; i < length; i++) {
-			division._set(i, this._children[i]._size);
+			sum += this._children[i]._size;
+			var pos = Math.round(this.remSize * sum);
+			this._sizes[i] = pos - prev;
+			prev = pos;
 		}
-		this._sizes = division._get();
 	};
 	prototype._onresize = function (width, height) {
 		this.setSize(width, height);
