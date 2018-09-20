@@ -640,6 +640,7 @@ var TabStrip = _(function (Base, base) {
 			toIndex < index ? to : to.nextSibling);
 		
 		this._parent.moveChild(index, toIndex);
+		this._parent.setTabSize();
 		return x - this.tabSize * (toIndex - index);
 	};
 	
@@ -696,15 +697,18 @@ var Tab = _(function (Base, base) {
 	var FIXED_NAME = NAME_PREFIX + 'fixed';
 	
 	function Drag(tab) {
-		this.contents = tab.tabstrip._parent;
+		var tabstrip = tab.tabstrip;
+		this.contents = tabstrip._parent;
 		this.detachable = this.contents instanceof Sub;
 		
 		if (this.detachable) {
 			this.diff = Vector._ZERO;
 			this._i = tab._index();
-			this._min = -tab.tabstrip.tabSize;
-			this._max = this.contents._width +
-				this._min * (tab.tabstrip.tabs.length - 1);
+			
+			this._size = tabstrip.tabSize;
+			this._min = -this._size;
+			this._max = this.contents._width -
+				this._size * (tabstrip.tabs.length - 1);
 		}
 		this._x = 0;
 	}
@@ -728,8 +732,11 @@ var Tab = _(function (Base, base) {
 		}
 	};
 	
-	prototype._detach = function (container) {
-		var drag = this.drag;
+	prototype._detach = function (drag) {
+		var container = this.container;
+		this.removeGrabbingClass();
+		this.setLeft(Math.round(drag._size * drag._i));
+		
 		var contents = drag.contents;
 		var rect = contents.getRectOf(container)._round();
 		var sub = contents.detachChild(this._parent, drag._i);
@@ -755,9 +762,7 @@ var Tab = _(function (Base, base) {
 			if (drag._x < drag._min || drag._max <= drag._x ||
 				Math.abs(drag.diff._y) >= TabStrip.HEIGHT) {
 				
-				this.removeGrabbingClass();
-				this.setLeft(this.tabstrip.tabSize * drag._i);
-				return this._detach(this.container).minus(diff);
+				return this._detach(drag).minus(diff);
 			}
 		}
 		this.setLeft(drag._x);
