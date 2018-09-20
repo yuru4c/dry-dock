@@ -56,8 +56,8 @@ var Vector = (function () {
 	
 	Vector.from = function (event) {
 		return new Vector(
-			Math.floor(event.clientX),
-			Math.floor(event.clientY));
+			event.clientX,
+			event.clientY);
 	};
 	
 	prototype.plus  = function (vector) {
@@ -87,6 +87,11 @@ var Vector = (function () {
 			Math.max(this.y, vector.y));
 	};
 	
+	prototype.round = function () {
+		return new Vector(
+			Math.round(this.x),
+			Math.round(this.y));
+	};
 	prototype.square = function () {
 		return this.x * this.x +
 		       this.y * this.y;
@@ -317,11 +322,10 @@ var Pointer = (function () {
 		this.container = container;
 		
 		this.point = Vector.from(event);
-		this.dragStart = this.point;
-		this.dragDiff  = Vector.ZERO;
-		this.hardDrag  = draggable.hardDrag;
-		this.firstDrag = true;
+		this.diff  = Vector.ZERO;
+		this.first = true;
 		
+		this.hardDrag = draggable.hardDrag;
 		this.setDragging(draggable);
 	}
 	var prototype = Pointer.prototype;
@@ -339,21 +343,20 @@ var Pointer = (function () {
 	prototype.mousemove = function (event) {
 		var point = Vector.from(event);
 		if (this.hardDrag) {
-			var sq = point.minus(this.dragStart).square();
+			var sq = point.minus(this.point).square();
 			if (sq < THRESHOLD) return;
 			this.hardDrag = false;
 		}
 		var diff = point.minus(this.point);
 		this.point = point;
 		
-		if (this.firstDrag) {
+		if (this.first) {
 			this.dragging.ondragstart();
-			this.firstDrag = false;
+			this.first = false;
 		}
-		var sumDiff = this.dragDiff.plus(diff);
-		var resDiff = this.dragging.ondrag(sumDiff);
-		this.dragDiff = resDiff ?
-			sumDiff.minus(resDiff) : Vector.ZERO;
+		var sum = this.diff.plus(diff), arg = sum.round();
+		var ret = this.dragging.ondrag(arg);
+		this.diff = sum.minus(ret || arg);
 	};
 	prototype.mouseup = function () {
 		this.dragging.ondrop();
@@ -379,53 +382,15 @@ var Option = (function () {
 	return Option;
 })();
 
-var Division = (function () {
-	
-	function Division(value) {
-		this.value = value;
-		this.sum   = 0;
-		this.rounds = [];
-		this.values = [];
-	}
-	var prototype = Division.prototype;
-	
-	function Round(index, value) {
-		this.index = index;
-		this.value = value;
-	}
-	function compare(a, b) {
-		return b.value - a.value || b.index - a.index;
-	}
-	
-	prototype.set = function (i, prop) {
-		var value = this.value * prop;
-		var floor = Math.floor(value);
-		
-		this.sum      += floor;
-		this.values[i] = floor;
-		this.rounds[i] = new Round(i, value - floor);
-	};
-	prototype.get = function () {
-		this.rounds.sort(compare);
-		var diff = this.value - this.sum;
-		for (var i = 0; i < diff; i++) {
-			this.values[this.rounds[i].index]++;
-		}
-		return this.values;
-	};
-	
-	return Division;
-})();
-
 
 var Model = (function () {
 	
 	function Model(className) {
-		className = NAME_PREFIX + className;
-		this.classList = [className];
+		var prefixed = NAME_PREFIX + className;
+		this.classList = [prefixed];
 		
 		this.element = $.createElement(this.tagName);
-		this.element.className = className;
+		this.element.className = prefixed;
 		
 		this.body = this.element;
 	}
@@ -433,10 +398,10 @@ var Model = (function () {
 	
 	function indexOf(classList, className) {
 		var length = classList.length;
-		for (var i = 0; i < length; i++) {
+		for (var i = 1; i < length; i++) {
 			if (classList[i] == className) return i;
 		}
-		return -1;
+		return 0;
 	}
 	
 	prototype.tagName = 'div';
@@ -476,16 +441,16 @@ var Model = (function () {
 		this.element.className = this.classList.join(' ');
 	};
 	prototype.addClass = function (className) {
-		if (indexOf(this.classList, className) == -1) {
-			this.classList.push(className);
-			this.applyClass();
-		}
+		if (indexOf(this.classList, className)) return;
+		this.classList.push(className);
+		this.applyClass();
 	};
 	prototype.removeClass = function (className) {
 		var index = indexOf(this.classList, className);
-		if (index == -1) return;
-		this.classList.splice(index, 1);
-		this.applyClass();
+		if (index) {
+			this.classList.splice(index, 1);
+			this.applyClass();
+		}
 	};
 	
 	return Model;
@@ -665,6 +630,7 @@ var TabStrip = _(function (Base, base) {
 			toIndex < index ? to : to.nextSibling);
 		
 		this.parent.moveChild(index, toIndex);
+		this.parent.setTabSize();
 		return x - this.tabSize * (toIndex - index);
 	};
 	
@@ -679,26 +645,19 @@ var TabStrip = _(function (Base, base) {
 	};
 	
 	prototype.onresize = function (size, tabSize, margin) {
-		var length = this.tabs.length, rem = 0;
-		size = margin < size ? size - margin : 0;
-		
-		if (tabSize * length > size) {
-			this.tabSize = size / length;
-			if (margin) {
-				tabSize = this.tabSize;
-			} else {
-				tabSize = Math.floor(this.tabSize);
-				rem = size % length;
-			}
+		var length = this.tabs.length;
+		var rem = margin < size ? size - margin : 0;
+		if (tabSize * length > rem) {
+			this.tabSize = rem / length;
 		} else {
 			this.tabSize = tabSize;
 		}
-		this.setEachSize(0, rem, tabSize + 1);
-		this.setEachSize(rem, length, tabSize);
-	};
-	prototype.setEachSize = function (begin, end, size) {
-		for (var i = begin; i < end; i++) {
-			this.tabs[i].setWidth(size);
+		var sum = 0, prev = 0;
+		for (var i = 0; i < length; i++) {
+			sum += this.tabSize;
+			var pos = Math.round(sum);
+			this.tabs[i].setWidth(pos - prev);
+			prev = pos;
 		}
 	};
 	
@@ -733,15 +692,18 @@ var Tab = _(function (Base, base) {
 	var FIXED_NAME = NAME_PREFIX + 'fixed';
 	
 	function Drag(tab) {
-		this.contents = tab.tabstrip.parent;
+		var tabstrip = tab.tabstrip;
+		this.contents = tabstrip.parent;
 		this.detachable = this.contents instanceof Sub;
 		
 		if (this.detachable) {
 			this.diff = Vector.ZERO;
 			this.i = tab.index();
-			this.min = -tab.tabstrip.tabSize;
-			this.max = this.contents.width +
-				this.min * (tab.tabstrip.tabs.length - 1);
+			
+			this.size = tabstrip.tabSize;
+			this.min = -this.size;
+			this.max = this.contents.width -
+				this.size * (tabstrip.tabs.length - 1);
 		}
 		this.x = 0;
 	}
@@ -765,8 +727,11 @@ var Tab = _(function (Base, base) {
 		}
 	};
 	
-	prototype.detach = function (container) {
-		var drag = this.drag;
+	prototype.detach = function (drag) {
+		var container = this.container;
+		this.removeGrabbingClass();
+		this.setLeft(Math.round(drag.size * drag.i));
+		
 		var contents = drag.contents;
 		var rect = contents.getRectOf(container).round();
 		var sub = contents.detachChild(this.parent, drag.i);
@@ -792,9 +757,7 @@ var Tab = _(function (Base, base) {
 			if (drag.x < drag.min || drag.max <= drag.x ||
 				Math.abs(drag.diff.y) >= TabStrip.HEIGHT) {
 				
-				this.removeGrabbingClass();
-				this.setLeft(this.tabstrip.tabSize * drag.i);
-				return this.detach(this.container).minus(diff);
+				return this.detach(drag).minus(diff);
 			}
 		}
 		this.setLeft(drag.x);
@@ -835,7 +798,7 @@ var Close = _(function (Base, base) {
 		this.addActiveClass();
 		blur();
 	};
-	prototype.ondrag = function (delta) {
+	prototype.ondrag = function () {
 		var drag = this.drag;
 		var point = this.container.pointer.point;
 		
@@ -1025,7 +988,7 @@ var Guide = _(function (Base, base) {
 	function Drag(contents) {
 		this.contents = contents;
 		this.target = null;
-		this.firstDrag = true;
+		this.first = true;
 	}
 	
 	prototype.drag = null;
@@ -1035,7 +998,7 @@ var Guide = _(function (Base, base) {
 	};
 	prototype.ondrag = function () {
 		var drag = this.drag;
-		if (drag.firstDrag) {
+		if (drag.first) {
 			this.container.calcRect();
 			var pos = new ButtonPos(this.container.cRect);
 			
@@ -1045,7 +1008,7 @@ var Guide = _(function (Base, base) {
 			this.left  .setPos(pos.c.y, pos.f.x);
 			
 			this.show();
-			drag.firstDrag = false;
+			drag.first = false;
 		}
 		var point = this.container.pointer.point;
 		
@@ -2234,25 +2197,25 @@ var DockPane = _(function (Base, base) {
 	};
 	prototype.onSplitterDrag = function (i, delta) {
 		var child = this.children[i];
-		if (this.order) delta = -delta;
+		var d = this.order ? -delta : delta;
 		
-		if (delta < -child.size) delta = -child.size;
+		if (d < -child.size) d = -child.size;
 		var drag = this.drag;
 		if (drag) {
-			if (delta < -this.size) delta = this.size;
+			if (d < -this.size) d = this.size;
 			var rem = drag.maxSize - this.size;
-			if (rem < delta) delta = rem;
-			this.size  += delta;
-			child.size += delta;
+			if (rem < d) d = rem;
+			this.size  += d;
+			child.size += d;
 			
 			drag.container.updateMinSize();
 		} else {
 			var next = this.children[this.order ? i - 1 : i + 1];
-			if (delta > next.size) delta = next.size;
-			child.size += delta;
-			next .size -= delta;
+			if (d > next.size) d = next.size;
+			child.size += d;
+			next .size -= d;
 		}
-		return this.order ? -delta : delta;
+		return this.order ? -d : d;
 	};
 	
 	prototype.merge = function (dockpane) {
@@ -2331,6 +2294,7 @@ var Pane = _(function (Base, base) {
 	function Pane(horizontal) {
 		Base.call(this, 'pane', horizontal);
 		
+		this.sizes = [];
 		this.collapse = false;
 	}
 	var prototype = inherit(Pane, base);
@@ -2347,7 +2311,7 @@ var Pane = _(function (Base, base) {
 	
 	var COLLAPSE_NAME = NAME_PREFIX + 'collapse';
 	
-	prototype.onSplitterDragStart = function (splitter) {
+	prototype.onSplitterDragStart = function () {
 		if (this.remSize) {
 			this.calcSizes();
 		} else {
@@ -2477,12 +2441,16 @@ var Pane = _(function (Base, base) {
 				this.removeClass(COLLAPSE_NAME);
 			}
 		}
-		var division = new Division(this.remSize);
 		var length = this.children.length;
+		this.sizes.length = length;
+		
+		var sum = .0; var prev = 0;
 		for (var i = 0; i < length; i++) {
-			division.set(i, this.children[i].size);
+			sum += this.children[i].size;
+			var pos = Math.round(this.remSize * sum);
+			this.sizes[i] = pos - prev;
+			prev = pos;
 		}
-		this.sizes = division.get();
 	};
 	prototype.onresize = function (width, height) {
 		this.setSize(width, height);
@@ -2713,12 +2681,12 @@ var Sub = _(function (Base, base) {
 	
 	prototype.openFloat = function (container, rect, delta) {
 		var frame = new Frame(this);
-		delta = max(delta, rect);
-		frame.rect = rect.plus(delta).max(TabStrip.HEIGHT);
+		var d = max(delta, rect);
+		frame.rect = rect.plus(d).max(TabStrip.HEIGHT);
 		
 		container.floats.appendChild(frame);
 		frame.activate();
-		return delta;
+		return d;
 	};
 	
 	prototype.onStripDragStart = function () {
@@ -2729,11 +2697,11 @@ var Sub = _(function (Base, base) {
 		var container = this.tabstrip.container;
 		
 		if (this.parent instanceof Frame) {
-			delta = max(delta, this.parent.rect);
-			this.parent.move(delta);
+			var d = max(delta, this.parent.rect);
+			this.parent.move(d);
 			
 			container.guide.ondrag();
-			return delta;
+			return d;
 		}
 		
 		var rect = this.getRectOf(container).round();
