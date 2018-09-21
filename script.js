@@ -730,7 +730,8 @@ var Tab = _(function (Base, base) {
 	prototype.detach = function (drag) {
 		var container = this.container;
 		this.removeGrabbingClass();
-		this.setLeft(Math.round(drag.size * drag.i));
+		this.setWidth(drag.size);
+		this.setLeft(drag.size * drag.i);
 		
 		var contents = drag.contents;
 		var rect = contents.getRectOf(container).round();
