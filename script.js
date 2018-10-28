@@ -22,7 +22,7 @@ function blur() {
 }
 function createDiv(className) {
 	var div = $.createElement('div');
-	div.className = NAME_PREFIX + className;
+	div.className = className;
 	return div;
 }
 function toTouch(listener) {
@@ -31,12 +31,6 @@ function toTouch(listener) {
 	};
 }
 
-
-function _(_) {
-	return function (Base) {
-		return _(Base, Base.prototype);
-	};
-}
 
 var inherit = (function (_) {
 	return function (constructor, base) {
@@ -398,12 +392,11 @@ var Option = (function () {
 
 var Model = (function () {
 	
-	function Model(className) {
-		var prefixed = NAME_PREFIX + className;
-		this._classList = [prefixed];
+	function Model() {
+		this._classList = [this._className];
 		
 		this._element = $.createElement(this._tagName);
-		this._element.className = prefixed;
+		this._element.className = this._className;
 		
 		this._body = this._element;
 	}
@@ -418,6 +411,7 @@ var Model = (function () {
 	}
 	
 	prototype._tagName = 'div';
+	prototype._className = NAME_PREFIX;
 	
 	prototype._setSize = function (width, height) {
 		var style = this._element.style;
@@ -469,11 +463,12 @@ var Model = (function () {
 	return Model;
 })();
 
-var Control = _(function (Base, base) {
+var Control = (function (Base) {
 	
-	function Control(className) {
-		Base.call(this, className);
+	function Control() {
+		Base.call(this);
 	}
+	var base = Base.prototype;
 	var prototype = inherit(Control, base);
 	
 	var ACTIVE_NAME = NAME_PREFIX + 'active';
@@ -506,10 +501,10 @@ var Control = _(function (Base, base) {
 	return Control;
 })(Model);
 
-var Draggable = _(function (Base, base) {
+var Draggable = (function (Base) {
 	
-	function Draggable(className, parent) {
-		Base.call(this, className);
+	function Draggable(parent) {
+		Base.call(this);
 		var self = this;
 		
 		this._parent = parent;
@@ -528,6 +523,7 @@ var Draggable = _(function (Base, base) {
 		this._element.onmousedown  = mousedown;
 		this._element.ontouchstart = toTouch(mousedown);
 	}
+	var base = Base.prototype;
 	var prototype = inherit(Draggable, base);
 	
 	var GRABBING_NAME = NAME_PREFIX + 'grabbing';
@@ -558,17 +554,20 @@ var Draggable = _(function (Base, base) {
 })(Control);
 
 
-var Splitter = _(function (Base, base) {
+var Splitter = (function (Base) {
 	
 	function Splitter(pane, index) {
-		Base.call(this, 'splitter', pane);
+		Base.call(this, pane);
 		
 		this._index = index;
 		this._setCursor(pane._horizontal ? 'ew-resize' : 'ns-resize');
 	}
+	var base = Base.prototype;
 	var prototype = inherit(Splitter, base);
 	
 	Splitter._SIZE = 6; // px const
+	
+	prototype._className += 'splitter';
 	
 	prototype._onmousedown = function () {
 		base._onmousedown.call(this);
@@ -594,17 +593,20 @@ var Splitter = _(function (Base, base) {
 	return Splitter;
 })(Draggable);
 
-var TabStrip = _(function (Base, base) {
+var TabStrip = (function (Base) {
 	
 	function TabStrip(contents) {
-		Base.call(this, 'tabstrip', contents);
+		Base.call(this, contents);
 		
 		this._tabs = [];
 	}
+	var base = Base.prototype;
 	var prototype = inherit(TabStrip, base);
 	
 	TabStrip._HEIGHT = 26; // px const
 	TabStrip._MAIN = TabStrip._HEIGHT + 2; // px const
+	
+	prototype._className += 'tabstrip';
 	
 	prototype._hardDrag = true;
 	
@@ -657,11 +659,8 @@ var TabStrip = _(function (Base, base) {
 	prototype._onresize = function (size, tabSize, margin) {
 		var length = this._tabs.length;
 		var rem = margin < size ? size - margin : 0;
-		if (tabSize * length > rem) {
-			this._tabSize = rem / length;
-		} else {
-			this._tabSize = tabSize;
-		}
+		this._tabSize = tabSize * length > rem ?
+			rem / length : tabSize;
 		var sum = 0, prev = 0;
 		for (var i = 0; i < length; i++) {
 			sum += this._tabSize;
@@ -674,16 +673,19 @@ var TabStrip = _(function (Base, base) {
 	return TabStrip;
 })(Draggable);
 
-var Tab = _(function (Base, base) {
+var Tab = (function (Base) {
+	
+	var TITLE_NAME = NAME_PREFIX + 'title';
+	var FIXED_NAME = NAME_PREFIX + 'fixed';
 	
 	function Tab(content) {
-		Base.call(this, 'tab', content);
+		Base.call(this, content);
 		
 		var title = content._getTitle();
 		this._textNode = $.createTextNode(title);
 		
 		this._body = $.createElement('span');
-		this._body.className = NAME_PREFIX + 'title';
+		this._body.className = TITLE_NAME;
 		this._body.appendChild(this._textNode);
 		
 		var close = new Close(this, content);
@@ -692,9 +694,8 @@ var Tab = _(function (Base, base) {
 		this._element.appendChild(this._body);
 		this._element.appendChild(close._element);
 	}
+	var base = Base.prototype;
 	var prototype = inherit(Tab, base);
-	
-	var FIXED_NAME = NAME_PREFIX + 'fixed';
 	
 	function Drag(tab) {
 		var tabstrip = tab._tabstrip;
@@ -712,6 +713,8 @@ var Tab = _(function (Base, base) {
 		}
 		this._x = 0;
 	}
+	
+	prototype._className += 'tab';
 	
 	prototype._hardDrag = true;
 	prototype._tabstrip = null;
@@ -778,16 +781,17 @@ var Tab = _(function (Base, base) {
 	return Tab;
 })(Draggable);
 
-var Close = _(function (Base, base) {
+var Close = (function (Base) {
 	
 	function Close(tab, content) {
-		Base.call(this, 'close', tab);
+		Base.call(this, tab);
 		
 		this._content = content;
 		
 		this._element.title = '';
 		this._body.appendChild($.createTextNode('×'));
 	}
+	var base = Base.prototype;
 	var prototype = inherit(Close, base);
 	
 	var CANCEL_NAME = NAME_PREFIX + 'cancel';
@@ -798,6 +802,7 @@ var Close = _(function (Base, base) {
 	}
 	
 	prototype._tagName = 'a';
+	prototype._className += 'close';
 	
 	prototype._onmousedown = function () {
 		this._drag = new Drag(this._getRect());
@@ -833,10 +838,10 @@ var Close = _(function (Base, base) {
 	return Close;
 })(Draggable);
 
-var Edge = _(function (Base, base) {
+var Edge = (function (Base) {
 	
 	function Edge(frame, v, h, cursor) {
-		Base.call(this, 'edge', frame);
+		Base.call(this, frame);
 		
 		this._v = v;
 		this._h = h;
@@ -845,9 +850,12 @@ var Edge = _(function (Base, base) {
 		this._addClass(h._className);
 		this._setCursor(cursor);
 	}
+	var base = Base.prototype;
 	var prototype = inherit(Edge, base);
 	
 	Edge._SIZE = 2; // px const
+	
+	prototype._className += 'edge';
 	
 	prototype._ondrag = function (delta) {
 		var dx = delta._x, dy = delta._y;
@@ -893,13 +901,14 @@ var Edge = _(function (Base, base) {
 })(Draggable);
 
 
-var GuideControl = _(function (Base, base) {
+var GuideControl = (function (Base) {
 	
-	function GuideControl(className, container) {
-		Base.call(this, className);
+	function GuideControl(container) {
+		Base.call(this);
 		
 		this._container = container;
 	}
+	var base = Base.prototype;
 	var prototype = inherit(GuideControl, base);
 	
 	prototype._hide = function () {
@@ -917,10 +926,10 @@ var GuideControl = _(function (Base, base) {
 	return GuideControl;
 })(Model);
 
-var GuideBase = _(function (Base, base) {
+var GuideBase = (function (Base) {
 	
-	function GuideBase(className, container) {
-		Base.call(this, className, container);
+	function GuideBase(container) {
+		Base.call(this, container);
 		
 		this._area = new GuideArea(container);
 		this._top    = new GuideButton(container, ButtonDef._TOP);
@@ -935,6 +944,7 @@ var GuideBase = _(function (Base, base) {
 		this._body.appendChild(this._bottom._element);
 		this._body.appendChild(this._left  ._element);
 	}
+	var base = Base.prototype;
 	var prototype = inherit(GuideBase, base);
 	
 	prototype._droppable = null;
@@ -947,18 +957,17 @@ var GuideBase = _(function (Base, base) {
 		return null;
 	};
 	prototype._setDroppable = function (droppable) {
-		if (droppable != this._droppable) {
-			if (this._droppable) {
-				this._droppable._onleave();
-			}
-			this._droppable = droppable;
-			if (droppable) {
-				droppable._onenter();
-				this._enter(droppable);
-				this._area._show();
-			} else {
-				this._area._hide();
-			}
+		if (droppable == this._droppable) return;
+		if (this._droppable) {
+			this._droppable._onleave();
+		}
+		this._droppable = droppable;
+		if (droppable) {
+			droppable._onenter();
+			this._enter(droppable);
+			this._area._show();
+		} else {
+			this._area._hide();
 		}
 	};
 	
@@ -981,14 +990,15 @@ var GuideBase = _(function (Base, base) {
 	return GuideBase;
 })(GuideControl);
 
-var Guide = _(function (Base, base) {
+var Guide = (function (Base) {
 	
 	function Guide(container) {
-		Base.call(this, 'guide', container);
+		Base.call(this, container);
 		
 		this._child = new GuidePane(container);
 		this._body.appendChild(this._child._element);
 	}
+	var base = Base.prototype;
 	var prototype = inherit(Guide, base);
 	
 	function Drag(contents) {
@@ -996,6 +1006,8 @@ var Guide = _(function (Base, base) {
 		this._target = null;
 		this._first = true;
 	}
+	
+	prototype._className += 'guide';
 	
 	prototype._drag = null;
 	
@@ -1066,16 +1078,17 @@ var Guide = _(function (Base, base) {
 	return Guide;
 })(GuideBase);
 
-var GuidePane = _(function (Base, base) {
+var GuidePane = (function (Base) {
 	
 	function GuidePane(container) {
-		Base.call(this, 'guidepane', container);
+		Base.call(this, container);
 		
 		this._center = new GuideButton(container, ButtonDef._CENTER);
 		this._guidestrip = new GuideStrip(container);
 		this._body.appendChild(this._center._element);
 		this._body.appendChild(this._guidestrip._element);
 	}
+	var base = Base.prototype;
 	var prototype = inherit(GuidePane, base);
 	
 	function Drag(target, container) {
@@ -1085,6 +1098,8 @@ var GuidePane = _(function (Base, base) {
 		this._pane = target._parent instanceof Pane;
 		this._main = target instanceof Main;
 	}
+	
+	prototype._className += 'guidepane';
 	
 	prototype._onenter = function (target) {
 		var drag = new Drag(target, this._container);
@@ -1159,11 +1174,12 @@ var GuidePane = _(function (Base, base) {
 })(GuideBase);
 
 
-var GuideDroppable = _(function (Base, base) {
+var GuideDroppable = (function (Base) {
 	
-	function GuideDroppable(className, container) {
-		Base.call(this, className, container);
+	function GuideDroppable(container) {
+		Base.call(this, container);
 	}
+	var base = Base.prototype;
 	var prototype = inherit(GuideDroppable, base);
 	
 	prototype._ondrop = function (contents, target) {
@@ -1278,14 +1294,15 @@ var GuideDroppable = _(function (Base, base) {
 	return GuideDroppable;
 })(GuideControl);
 
-var GuideButton = _(function (Base, base) {
+var GuideButton = (function (Base) {
 	
 	function GuideButton(container, def) {
-		Base.call(this, 'guidebutton', container);
+		Base.call(this, container);
 		
 		this._def = def;
 		this._body.appendChild($.createTextNode(def._letter));
 	}
+	var base = Base.prototype;
 	var prototype = inherit(GuideButton, base);
 	
 	GuideButton._SIZE   = 40; // px const
@@ -1293,6 +1310,8 @@ var GuideButton = _(function (Base, base) {
 	GuideButton._DIFF = GuideButton._SIZE + GuideButton._MARGIN;
 	
 	var HOVER_NAME = NAME_PREFIX + 'hover';
+	
+	prototype._className += 'guidebutton';
 	
 	prototype._setPos = function (top, left) {
 		this._rect = new Rect(top, left,
@@ -1345,14 +1364,15 @@ var GuideButton = _(function (Base, base) {
 	return GuideButton;
 })(GuideDroppable);
 
-var GuideStrip = _(function (Base, base) {
+var GuideStrip = (function (Base) {
 	
 	function GuideStrip(container) {
-		Base.call(this, 'guidestrip', container);
+		Base.call(this, container);
 		
 		this._area = new GuideArea(container);
 		this._body.appendChild(this._area._element);
 	}
+	var base = Base.prototype;
 	var prototype = inherit(GuideStrip, base);
 	
 	function Drag(target) {
@@ -1360,6 +1380,8 @@ var GuideStrip = _(function (Base, base) {
 		this._tabSize = target._tabstrip._tabSize;
 		this._length  = target._children.length;
 	}
+	
+	prototype._className += 'guidestrip';
 	
 	prototype._enter = function (target) {
 		this._drag = new Drag(target);
@@ -1389,16 +1411,19 @@ var GuideStrip = _(function (Base, base) {
 	return GuideStrip;
 })(GuideDroppable);
 
-var GuideArea = _(function (Base, base) {
+var GuideArea = (function (Base) {
 	
 	function GuideArea(container) {
-		Base.call(this, 'guidearea', container);
+		Base.call(this, container);
 		
 		this._hide();
 	}
+	var base = Base.prototype;
 	var prototype = inherit(GuideArea, base);
 	
 	var HEIGHT_PX = TabStrip._HEIGHT + 'px';
+	
+	prototype._className += 'guidearea';
 	
 	prototype._set = function (def, margin, value) {
 		var px = value + Splitter._SIZE + 'px';
@@ -1453,11 +1478,12 @@ var GuideArea = _(function (Base, base) {
 })(GuideControl);
 
 
-var Layout = _(function (Base, base) {
+var Layout = (function (Base) {
 	
-	function Layout(className) {
-		Base.call(this, className);
+	function Layout() {
+		Base.call(this);
 	}
+	var base = Base.prototype;
 	var prototype = inherit(Layout, base);
 	
 	var HORIZONTAL_NAME = NAME_PREFIX + 'horizontal';
@@ -1477,13 +1503,14 @@ var Layout = _(function (Base, base) {
 	return Layout;
 })(Control);
 
-var Single = _(function (Base, base) {
+var Single = (function (Base) {
 	
-	function Single(className) {
-		Base.call(this, className);
+	function Single() {
+		Base.call(this);
 		
 		this._child = null;
 	}
+	var base = Base.prototype;
 	var prototype = inherit(Single, base);
 	
 	prototype._setChild = function (child) {
@@ -1519,13 +1546,14 @@ var Single = _(function (Base, base) {
 	return Single;
 })(Layout);
 
-var Multiple = _(function (Base, base) {
+var Multiple = (function (Base) {
 	
-	function Multiple(className) {
-		Base.call(this, className);
+	function Multiple() {
+		Base.call(this);
 		
 		this._children = [];
 	}
+	var base = Base.prototype;
 	var prototype = inherit(Multiple, base);
 	
 	prototype._appendChild = function (child) {
@@ -1595,13 +1623,14 @@ var Multiple = _(function (Base, base) {
 	return Multiple;
 })(Layout);
 
-var Activator = _(function (Base, base) {
+var Activator = (function (Base) {
 	
-	function Activator(className) {
-		Base.call(this, className);
+	function Activator() {
+		Base.call(this);
 		
 		this._active = null;
 	}
+	var base = Base.prototype;
 	var prototype = inherit(Activator, base);
 	
 	prototype._removeChild = function (child) {
@@ -1630,11 +1659,12 @@ var Activator = _(function (Base, base) {
 })(Multiple);
 
 
-var DockBase = _(function (Base, base) {
+var DockBase = (function (Base) {
 	
-	function DockBase(className) {
-		Base.call(this, className);
+	function DockBase() {
+		Base.call(this);
 	}
+	var base = Base.prototype;
 	var prototype = inherit(DockBase, base);
 	
 	prototype._getMain = function () {
@@ -1657,13 +1687,15 @@ var DockBase = _(function (Base, base) {
 	return DockBase;
 })(Single);
 
-var Container = _(function (Base, base) {
+var Container = (function (Base) {
 	
+	var BODY_NAME     = NAME_PREFIX + 'body';
+	var OVERLAY_NAME  = NAME_PREFIX + 'overlay';
 	var DRAGGING_NAME = NAME_PREFIX + 'dragging';
 	var FLOATING_NAME = NAME_PREFIX + 'floating';
 	
 	function Container(element) {
-		Base.call(this, 'container');
+		Base.call(this);
 		var self = this;
 		
 		this._contents = {};
@@ -1681,8 +1713,8 @@ var Container = _(function (Base, base) {
 		}
 		
 		// DOM
-		this._body    = createDiv('body');
-		this._overlay = createDiv('overlay');
+		this._body    = createDiv(BODY_NAME);
+		this._overlay = createDiv(OVERLAY_NAME);
 		this._floats = new Floats(this);
 		this._guide  = new Guide(this);
 		
@@ -1715,11 +1747,14 @@ var Container = _(function (Base, base) {
 		this._touchmove = toTouch(this._mousemove);
 		this._touchend  = toTouch(this._mouseup);
 	}
+	var base = Base.prototype;
 	var prototype = inherit(Container, base);
 	
 	Container._MARGIN = 6; // px const
 	Container._M2 = Container._MARGIN * 2;
 	Container._MP = Container._MARGIN + 'px';
+	
+	prototype._className += 'container';
 	
 	prototype._minSize = null;
 	prototype._cSize   = null;
@@ -1817,14 +1852,17 @@ var Container = _(function (Base, base) {
 	return Container;
 })(DockBase);
 
-var Floats = _(function (Base, base) {
+var Floats = (function (Base) {
 	
 	function Floats(container) {
-		Base.call(this, 'floats');
+		Base.call(this);
 		
 		this._parent = container;
 	}
+	var base = Base.prototype;
 	var prototype = inherit(Floats, base);
+	
+	prototype._className += 'floats';
 	
 	prototype._appendChild = function (frame) {
 		frame._setZ(this._children.length);
@@ -1899,18 +1937,21 @@ var Floats = _(function (Base, base) {
 	return Floats;
 })(Activator);
 
-var Frame = _(function (Base, base) {
+var Frame = (function (Base) {
+	
+	var FBODY_NAME = NAME_PREFIX + 'fbody';
 	
 	function Frame(sub) {
-		Base.call(this, 'frame');
+		Base.call(this);
 		
 		// DOM
-		this._body = createDiv('fbody');
+		this._body = createDiv(FBODY_NAME);
 		this._setChild(sub);
 		
 		this._element.appendChild(this._body);
 		EdgeDef._forEach(this);
 	}
+	var base = Base.prototype;
 	var prototype = inherit(Frame, base);
 	
 	Frame._MIN_R = Edge._SIZE + TabStrip._HEIGHT;
@@ -1924,6 +1965,8 @@ var Frame = _(function (Base, base) {
 	
 	var HANDLE = 6; // px const
 	var H2 = HANDLE * 2;
+	
+	prototype._className += 'frame';
 	
 	prototype._bodyRect = true;
 	
@@ -1988,10 +2031,10 @@ var Frame = _(function (Base, base) {
 	return Frame;
 })(Single);
 
-var Dock = _(function (Base, base) {
+var Dock = (function (Base) {
 	
 	function Dock(horizontal) {
-		Base.call(this, 'dock');
+		Base.call(this);
 		
 		this._horizontal = horizontal;
 		this._before = new DockPane(this, false);
@@ -2002,6 +2045,7 @@ var Dock = _(function (Base, base) {
 		this._body.appendChild(this._before._element);
 		this._body.appendChild(this._after ._element);
 	}
+	var base = Base.prototype;
 	var prototype = inherit(Dock, base);
 	
 	Dock._TYPE = 'dock';
@@ -2013,6 +2057,8 @@ var Dock = _(function (Base, base) {
 		dock._after ._fromJSON(container, json['after']);
 		return dock;
 	};
+	
+	prototype._className += 'dock';
 	
 	prototype._onRemove = function () {
 		if (this._before._children.length) return;
@@ -2097,10 +2143,10 @@ var Dock = _(function (Base, base) {
 })(DockBase);
 
 
-var PaneBase = _(function (Base, base) {
+var PaneBase = (function (Base) {
 	
-	function PaneBase(className, horizontal) {
-		Base.call(this, className);
+	function PaneBase(horizontal) {
+		Base.call(this);
 		
 		this._horizontal = horizontal;
 		this._splitters = [];
@@ -2108,6 +2154,7 @@ var PaneBase = _(function (Base, base) {
 		// DOM
 		if (horizontal) this._addHorizontalClass();
 	}
+	var base = Base.prototype;
 	var prototype = inherit(PaneBase, base);
 	
 	prototype._drag = null;
@@ -2169,15 +2216,16 @@ var PaneBase = _(function (Base, base) {
 	return PaneBase;
 })(Multiple);
 
-var DockPane = _(function (Base, base) {
+var DockPane = (function (Base) {
 	
 	function DockPane(dock, order) {
-		Base.call(this, 'dockpane', dock._horizontal);
+		Base.call(this, dock._horizontal);
 		this._parent = dock;
 		
 		this._size = 0;
 		this._order = order;
 	}
+	var base = Base.prototype;
 	var prototype = inherit(DockPane, base);
 	
 	function Drag(dockpane, container) {
@@ -2191,6 +2239,8 @@ var DockPane = _(function (Base, base) {
 		
 		this._maxSize = dockpane._size + rem;
 	}
+	
+	prototype._className += 'dockpane';
 	
 	prototype._onSplitterDragStart = function (splitter) {
 		var inner = this._order ? 0 : this._children.length - 1;
@@ -2292,14 +2342,15 @@ var DockPane = _(function (Base, base) {
 	return DockPane;
 })(PaneBase);
 
-var Pane = _(function (Base, base) {
+var Pane = (function (Base) {
 	
 	function Pane(horizontal) {
-		Base.call(this, 'pane', horizontal);
+		Base.call(this, horizontal);
 		
 		this._sizes = [];
 		this._collapse = false;
 	}
+	var base = Base.prototype;
 	var prototype = inherit(Pane, base);
 	
 	Pane._TYPE = 'pane';
@@ -2313,6 +2364,8 @@ var Pane = _(function (Base, base) {
 	function Drag() { }
 	
 	var COLLAPSE_NAME = NAME_PREFIX + 'collapse';
+	
+	prototype._className += 'pane';
 	
 	prototype._onSplitterDragStart = function () {
 		if (this._remSize) {
@@ -2484,27 +2537,31 @@ var Pane = _(function (Base, base) {
 })(PaneBase);
 
 
-var Contents = _(function (Base, base) {
+var Contents = (function (Base) {
 	
-	function Contents(className) {
-		Base.call(this, className);
+	var COVER_NAME    = NAME_PREFIX + 'cover';
+	var CONTENTS_NAME = NAME_PREFIX + 'contents';
+	
+	function Contents() {
+		Base.call(this);
 		var self = this;
 		
 		this._tabstrip = new TabStrip(this);
 		
 		// DOM
-		var cover = createDiv('cover');
+		var cover = createDiv(COVER_NAME);
 		cover.onmousedown = function () {
 			self._activate();
 			return false;
 		};
 		
-		this._body = createDiv('contents');
+		this._body = createDiv(CONTENTS_NAME);
 		this._body.appendChild(cover);
 		
 		this._element.appendChild(this._tabstrip._element);
 		this._element.appendChild(this._body);
 	}
+	var base = Base.prototype;
 	var prototype = inherit(Contents, base);
 	
 	prototype._appendChild = function (content, pauseLayout) {
@@ -2580,11 +2637,12 @@ var Contents = _(function (Base, base) {
 	return Contents;
 })(Activator);
 
-var Main = _(function (Base, base) {
+var Main = (function (Base) {
 	
 	function Main() {
-		Base.call(this, 'main');
+		Base.call(this);
 	}
+	var base = Base.prototype;
 	var prototype = inherit(Main, base);
 	
 	Main._TYPE = 'main';
@@ -2597,6 +2655,8 @@ var Main = _(function (Base, base) {
 	
 	var MIN_SIZE = new Size(TabStrip._MAIN, TabStrip._MAIN);
 	var TAB_SIZE = 120; // px const
+	
+	prototype._className += 'main';
 	
 	prototype._getMinSize = function () {
 		return MIN_SIZE;
@@ -2641,11 +2701,12 @@ var Main = _(function (Base, base) {
 	return Main;
 })(Contents);
 
-var Sub = _(function (Base, base) {
+var Sub = (function (Base) {
 	
 	function Sub() {
-		Base.call(this, 'sub');
+		Base.call(this);
 	}
+	var base = Base.prototype;
 	var prototype = inherit(Sub, base);
 	
 	Sub._TYPE = 'sub';
@@ -2663,6 +2724,8 @@ var Sub = _(function (Base, base) {
 			Frame._MIN_R - rect._right(),
 			Edge._SIZE   - rect._top));
 	}
+	
+	prototype._className += 'sub';
 	
 	prototype._detached = null;
 	
@@ -2760,14 +2823,14 @@ var Sub = _(function (Base, base) {
 })(Contents);
 
 
-var Content = _(function (Base, base) {
+var Content = (function (Base) {
 	
 	var DATA_PREFIX = 'data-' + NAME_PREFIX;
 	var TITLE_NAME = DATA_PREFIX + 'title';
 	var FIXED_NAME = DATA_PREFIX + 'fixed';
 	
 	function Content(iframe, options) {
-		Base.call(this, 'content');
+		Base.call(this);
 		var self = this;
 		
 		this._iframe = iframe;
@@ -2798,11 +2861,14 @@ var Content = _(function (Base, base) {
 		}
 		this._body.appendChild(iframe);
 	}
+	var base = Base.prototype;
 	var prototype = inherit(Content, base);
 	
 	Content._fromJSON = function (container, json) {
 		return container._contents[json['id']];
 	};
+	
+	prototype._className += 'content';
 	
 	prototype['id'] = null;
 	
