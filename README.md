@@ -1,5 +1,7 @@
 # DryDock
 
+### [デモ](https://yuru4c.github.io/dry-dock/)
+
 ## 概要
 ドッキングウィンドウの JavaScript と CSS による実装です。  
 たったの 3000 行程度で書かれており、機能は最低限で軽量です。
@@ -8,7 +10,7 @@
 初期レイアウトを作成する準備をします。
 ```html
 <head>
-	<link rel="stylesheet" href="drydock/style.css">
+	<link rel="stylesheet" href="drydock.css">
 </head>
 <body>
 	<div id="dock">
@@ -17,7 +19,7 @@
 		<div id="sub2" data-dd-title="サブ2">サブ2</div>
 	</div>
 	
-	<script src="drydock/script.js"></script>
+	<script src="drydock.js"></script>
 	<script>
 		var dock = document.getElementById('dock');
 		var dd = new DryDock(dock);
