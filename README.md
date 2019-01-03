@@ -1,6 +1,6 @@
 # DryDock
 
-[デモ ページ](https://yuru4c.github.io/dry-dock/)
+[**デモ ページ**](https://yuru4c.github.io/dry-dock/)
 
 ## 概要
 ドッキングウィンドウの JavaScript と CSS による実装です。  
