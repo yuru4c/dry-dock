@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	
+	<title>DryDock デモ</title>
+	
+	<link rel="stylesheet" href="drydock.css">
+	<style>
+		html {
+			-webkit-text-size-adjust: none;
+			   -moz-text-size-adjust: none;
+			    -ms-text-size-adjust: none;
+		}
+		body {
+			margin: 0;
+			font-family: 'Meiryo UI', sans-serif;
+			background-color: #2d2d30;
+		}
+		html, body, #dock {
+			height: 100%;
+		}
+		
+		h1 {
+			font-weight: normal;
+		}
+	</style>
+</head>
+<body>
+	
+	<div id="dock">
+		<div id="main1" data-dd-title="スタート ページ" data-dd-fixed>
+			<h1>DryDock デモ ページ</h1>
+		</div>
+		<iframe id="main2" src="window/sub.html#main2"></iframe>
+		
+		<iframe id="01" src="window/sub.html#01"></iframe>
+		<iframe id="02" src="window/sub.html#02"></iframe>
+		<iframe id="03" src="window/sub.html#03"></iframe>
+		<iframe id="04" src="window/sub.html#04"></iframe>
+		<iframe id="05" src="window/sub.html#05"></iframe>
+		<iframe id="06" src="window/sub.html#06"></iframe>
+		<iframe id="07" src="window/sub.html#07"></iframe>
+		<iframe id="08" src="window/sub.html#08"></iframe>
+		<iframe id="09" src="window/sub.html#09"></iframe>
+		<iframe id="10" src="window/sub.html#10"></iframe>
+	</div>
+	
+	<script src="drydock.js"></script>
+	<script>
+		var dock = document.getElementById('dock');
+		var dd = new DryDock(dock);
+		
+		onload = function () {
+			dd.init();
+			
+			dd.openMain(dd.contents['main1']);
+			dd.openMain(dd.contents['main2']);
+			
+			dd.openSub(dd.contents['01']);
+			dd.openSub(dd.contents['02']);
+			dd.openSub(dd.contents['03']);
+			dd.openSub(dd.contents['04']);
+			dd.openSub(dd.contents['05']);
+			dd.openSub(dd.contents['06']);
+			dd.openSub(dd.contents['07']);
+			dd.openSub(dd.contents['08']);
+			dd.openSub(dd.contents['09']);
+			dd.openSub(dd.contents['10']);
+			
+			dd.contents['main1'].activate();
+		};
+	</script>
+</body>
+</html>

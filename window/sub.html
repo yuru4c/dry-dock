@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="UTF-8">
+	
+	<title>sub</title>
+	
+	<style>
+		html {
+			-webkit-text-size-adjust: none;
+			   -moz-text-size-adjust: none;
+			    -ms-text-size-adjust: none;
+		}
+		body {
+			background-color: #252526;
+			color: #eee;
+			font-family: monospace, sans-serif;
+		}
+	</style>
+</head>
+<body>
+	
+	<div id="text">#text<br>#text</div>
+	
+	<script>
+		var text = document.getElementById('text');
+		document.title = text.firstChild.data =
+			'id=' + location.hash.substring(1);
+		
+		var size = text.lastChild;
+		onload = onresize = function () {
+			size.data = innerWidth + ' x ' + innerHeight;
+		};
+	</script>
+</body>
+</html>
