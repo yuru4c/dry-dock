@@ -22,7 +22,7 @@
 			height: 100%;
 		}
 		
-		h1 {
+		#main1 h1 {
 			font-weight: normal;
 		}
 	</style>
@@ -52,25 +52,23 @@
 		var dock = document.getElementById('dock');
 		var dd = new DryDock(dock);
 		
-		onload = function () {
-			dd.init();
-			
-			dd.openMain(dd.contents['main1']);
-			dd.openMain(dd.contents['main2']);
-			
-			dd.openSub(dd.contents['01']);
-			dd.openSub(dd.contents['02']);
-			dd.openSub(dd.contents['03']);
-			dd.openSub(dd.contents['04']);
-			dd.openSub(dd.contents['05']);
-			dd.openSub(dd.contents['06']);
-			dd.openSub(dd.contents['07']);
-			dd.openSub(dd.contents['08']);
-			dd.openSub(dd.contents['09']);
-			dd.openSub(dd.contents['10']);
-			
-			dd.contents['main1'].activate();
-		};
+		dd.init();
+		
+		dd.openMain(dd.contents['main1']);
+		dd.openMain(dd.contents['main2']);
+		
+		dd.openSub(dd.contents['01']);
+		dd.openSub(dd.contents['02']);
+		dd.openSub(dd.contents['03']);
+		dd.openSub(dd.contents['04']);
+		dd.openSub(dd.contents['05']);
+		dd.openSub(dd.contents['06']);
+		dd.openSub(dd.contents['07']);
+		dd.openSub(dd.contents['08']);
+		dd.openSub(dd.contents['09']);
+		dd.openSub(dd.contents['10']);
+		
+		dd.contents['main1'].activate();
 	</script>
 </body>
 </html>
