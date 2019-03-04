@@ -1,4 +1,4 @@
-var DryDock = (function ($, Node, Math, JSON) {
+var DryDock = (function (window, $, Node, Math, JSON) {
 
 var NAME_PREFIX = 'dd-';
 
@@ -335,12 +335,11 @@ var Pointer = (function () {
 	
 	prototype.mousemove = function (event) {
 		var point = Vector.from(event);
+		var diff = point.minus(this.point);
 		if (this.hardDrag) {
-			var sq = point.minus(this.point).square();
-			if (sq < THRESHOLD) return;
+			if (diff.square() < THRESHOLD) return;
 			this.hardDrag = false;
 		}
-		var diff = point.minus(this.point);
 		this.point = point;
 		
 		if (this.first) {
@@ -2947,9 +2946,11 @@ return (function () {
 		this.layout = container;
 		this.contents = container.contents;
 		
-		addEventListener('resize', function () {
-			container.onresize();
-		});
+		if (isFunction(window.addEventListener)) {
+			window.addEventListener('resize', function () {
+				container.onresize();
+			}, false);
+		}
 	}
 	var prototype = DryDock.prototype;
 	
@@ -3043,4 +3044,4 @@ return (function () {
 	return DryDock;
 })();
 
-})(document, Node, Math, JSON);
+})(window, document, Node, Math, JSON);
